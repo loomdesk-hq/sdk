@@ -1,6 +1,6 @@
 // Give a token its first market on LoomDesk's hook, with your liquidity in it, in one transaction.
 //   PRIVATE_KEY=0x... TOKEN=0x... node examples/launch-token.mjs
-import { LoomDesk, planLaunch, sendPlan, robinhoodChain } from "@loomdesk/sdk";
+import { LoomDesk, planLaunch, sendPlan, robinhoodChain } from "loomdesk-sdk";
 import { createWalletClient, createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 

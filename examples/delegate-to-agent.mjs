@@ -1,6 +1,6 @@
 // Let an agent collect a position's fees and set its rules, while every payout stays with you; then read it back.
 //   PRIVATE_KEY=0x... LADDER=12 AGENT=0x... node examples/delegate-to-agent.mjs
-import { LoomDesk, sendPlan, perms, readDelegate, loomLadderAbi, ADDRESSES, robinhoodChain } from "@loomdesk/sdk";
+import { LoomDesk, sendPlan, perms, readDelegate, loomLadderAbi, ADDRESSES, robinhoodChain } from "loomdesk-sdk";
 import { createWalletClient, createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 

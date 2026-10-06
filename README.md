@@ -1,4 +1,4 @@
-# @loomdesk/sdk
+# loomdesk-sdk
 
 LoomDesk for your code. Plan and build liquidity positions on Robinhood Chain, give a token its first market on LoomDesk's hook, send or delegate a position, all from a script, a bot or an app. Every plan comes back as unsigned transactions for the owner's wallet. Nothing in this package, and nothing on LoomDesk's side, signs or holds keys.
 
@@ -7,7 +7,7 @@ What LoomDesk is: https://loomdesk.trade/llms.txt (the short version), https://l
 ## Install
 
 ```
-npm install github:loomdesk-hq/sdk viem
+npm install loomdesk-sdk viem
 ```
 
 Node 18 or newer. `viem` is a peer dependency: you bring the wallet.
@@ -15,7 +15,7 @@ Node 18 or newer. `viem` is a peer dependency: you bring the wallet.
 ## Thirty seconds
 
 ```js
-import { LoomDesk, sendPlan, robinhoodChain } from "@loomdesk/sdk";
+import { LoomDesk, sendPlan, robinhoodChain } from "loomdesk-sdk";
 import { createWalletClient, createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
@@ -62,7 +62,7 @@ Every ask and answer is typed; see `src/types.ts`. The answers are the same the 
 A new token usually trades only in its launchpad's pool, where the launchpad keeps the whole fee. Give it a market of its own: a Uniswap v4 pool on LoomOpenHookV2, nine tenths of the swap fee to the liquidity, with your liquidity in it from the first block. One transaction, about a dollar for the pool.
 
 ```js
-import { planLaunch } from "@loomdesk/sdk";
+import { planLaunch } from "loomdesk-sdk";
 
 const plan = await planLaunch(loom, {
   token: "0xYourToken",
@@ -97,7 +97,7 @@ Heights are the shares of each side's amount: a rung twice as tall holds twice a
 Positions on the current LoomLadder can be handed to another wallet, or run by one.
 
 ```js
-import { perms, readDelegate, loomLadderAbi, ADDRESSES } from "@loomdesk/sdk";
+import { perms, readDelegate, loomLadderAbi, ADDRESSES } from "loomdesk-sdk";
 
 // hand it over, as it is: rungs, fees waiting, rules. Final.
 await sendPlan(await loom.planAction({ ladderId: "12", owner, action: "give", to: "0xFriend" }), { walletClient, publicClient });
