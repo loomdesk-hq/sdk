@@ -7,11 +7,20 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepare": "tsc -p tsconfig.json",
@@ -25,7 +34,18 @@
     "typescript": "^5.6.0",
     "viem": "^2.56.0"
   },
-  "repository": { "type": "git", "url": "https://github.com/loomdesk-hq/sdk" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loomdesk-hq/sdk.git"
+  },
   "homepage": "https://loomdesk.trade",
-  "keywords": ["loomdesk", "uniswap", "liquidity", "robinhood-chain", "hooks", "memecoin", "sdk"]
+  "keywords": [
+    "loomdesk",
+    "uniswap",
+    "liquidity",
+    "robinhood-chain",
+    "hooks",
+    "memecoin",
+    "sdk"
+  ]
 }
