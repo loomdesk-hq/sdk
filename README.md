@@ -1,0 +1,144 @@
+# @loomdesk/sdk
+
+LoomDesk for your code. Plan and build liquidity positions on Robinhood Chain, give a token its first market on LoomDesk's hook, send or delegate a position, all from a script, a bot or an app. Every plan comes back as unsigned transactions for the owner's wallet. Nothing in this package, and nothing on LoomDesk's side, signs or holds keys.
+
+What LoomDesk is: https://loomdesk.trade/llms.txt (the short version), https://loomdesk.trade/whitepaper (the long one).
+
+## Install
+
+```
+npm install github:loomdesk-hq/sdk viem
+```
+
+Node 18 or newer. `viem` is a peer dependency: you bring the wallet.
+
+## Thirty seconds
+
+```js
+import { LoomDesk, sendPlan, robinhoodChain } from "@loomdesk/sdk";
+import { createWalletClient, createPublicClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+
+const account = privateKeyToAccount(process.env.PRIVATE_KEY);
+const walletClient = createWalletClient({ account, chain: robinhoodChain, transport: http() });
+const publicClient = createPublicClient({ chain: robinhoodChain, transport: http() });
+
+const loom = new LoomDesk();
+await loom.getKey("my-bot"); // a free key: a quota of your own. Keep it; the client uses it from now on.
+
+// the pools a ladder can go in, best first
+const { pools } = await loom.pools("0xdd0C034DAdA72325BC893fA39bc392E82bF847D7");
+
+// one transaction from ETH to a 20-rung position around the price
+const plan = await loom.planBuild({
+  token: "0xdd0C034DAdA72325BC893fA39bc392E82bF847D7",
+  quote: "USDG", payIn: "ETH", amount: "0.01", owner: account.address,
+  lowPct: -20, highPct: 30, rungs: 20, shape: "curve",
+});
+console.log(plan.check, plan.sendWithin);
+const hashes = await sendPlan(plan, { walletClient, publicClient });
+```
+
+`sendPlan` sends the plan's transactions in order, each after the one before is mined, with the gas limits the planner set. It refuses a plan whose simulation failed and any transaction that is not going to one of LoomDesk's contracts. Plans are priced at the block they were made: send them soon (`plan.sendWithin` says how soon), and plan again rather than resend one that reverted.
+
+## What you can plan
+
+| Method | What comes back |
+|---|---|
+| `pools(token)` | the pools a ladder can go in, in the site's order, with fee, step, depth, volume, and whether the pool pays its liquidity |
+| `planBuild(ask)` | one transaction from ETH or USDG to a ladder; opens a pool on LoomDesk's hook on the way when the pair has none |
+| `planLadder(ask)` | a ladder from assets the wallet already holds, one side or both |
+| `planLimit(ask)` | a limit buy or sell: rungs at a price, closed for you once filled |
+| `planAction(ask)` | collect, close, close part, take the NFTs, set the fill rule, give the ladder away, delegate it |
+| `planOpenPool(ask)` | a new pool on the hook, on its own |
+| `planSwap(ask)` | a swap through Nordstern's aggregator |
+| `token(address)` | a token as LoomDesk measures it |
+| `ladders(address)` | a wallet's ladders on every LoomLadder, with rungs, fees waiting, value and history |
+
+Every ask and answer is typed; see `src/types.ts`. The answers are the same the MCP server gives: an agent that speaks MCP needs none of this.
+
+## Launch a token on LoomDesk's hook
+
+A new token usually trades only in its launchpad's pool, where the launchpad keeps the whole fee. Give it a market of its own: a Uniswap v4 pool on LoomOpenHookV2, nine tenths of the swap fee to the liquidity, with your liquidity in it from the first block. One transaction, about a dollar for the pool.
+
+```js
+import { planLaunch } from "@loomdesk/sdk";
+
+const plan = await planLaunch(loom, {
+  token: "0xYourToken",
+  quote: "ETH",        // or "USDG", or any token with a real exit
+  feePct: 1,           // 0.1, 0.5, or 1 to 5
+  payIn: "ETH",
+  amount: "0.5",       // buys the token side inside the transaction and fills both sides
+  owner: account.address,
+  lowPct: -50, highPct: 100, rungs: 30, shape: "hybrid",
+});
+console.log(plan.opensPool, plan.check);
+await sendPlan(plan, { walletClient, publicClient });
+```
+
+The pool opens at the token's existing market price, read from its deepest pool. The launch fee and the volatility fee (a fee that rises for a while after the price moves) are set from the site's hook builder at https://loomdesk.trade/create; a plan opens a plain pool at the tier you name. A launchpad can make this its listing step: one call per token, the creator's wallet as `owner`.
+
+## Paint your own shape
+
+```js
+const plan = await loom.planBuild({
+  token, quote: "USDG", payIn: "USDG", amount: "250", owner,
+  lowPct: -10, highPct: 10, rungs: 16,
+  shape: "custom",
+  weights: [1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8], // a height per rung, low price to high; stretched over the rungs built
+});
+```
+
+Heights are the shares of each side's amount: a rung twice as tall holds twice as much. The chain lays them as given.
+
+## Send or delegate a position
+
+Positions on the current LoomLadder can be handed to another wallet, or run by one.
+
+```js
+import { perms, readDelegate, loomLadderAbi, ADDRESSES } from "@loomdesk/sdk";
+
+// hand it over, as it is: rungs, fees waiting, rules. Final.
+await sendPlan(await loom.planAction({ ladderId: "12", owner, action: "give", to: "0xFriend" }), { walletClient, publicClient });
+
+// let an agent collect and set the rules; every payout still goes to you
+await sendPlan(await loom.planAction({ ladderId: "12", owner, action: "delegate", who: "0xAgent", perms: perms("collect", "rules") }), { walletClient, publicClient });
+
+// the delegate acts by naming itself as `actor`; the proceeds must go to the owner
+const collect = await loom.planAction({ ladderId: "12", owner, actor: "0xAgent", action: "collect" });
+
+// read a delegate back
+const word = await publicClient.readContract({ address: ADDRESSES.loomLadder, abi: loomLadderAbi, functionName: "delegateOf", args: [12n] });
+console.log(readDelegate(word)); // { who, perms, may: { add, remove, collect, rules } } or null
+
+// take it back
+await loom.planAction({ ladderId: "12", owner, action: "delegate", who: "0xAgent", perms: 0 });
+```
+
+A delegate is never paid by the ladder: the contract refuses any destination but the owner. Give `remove` only to something you would let close for you, and `rules` only to something you would let spend your gas tank on the autopilot.
+
+## Keys and quotas
+
+Every call is charged in units of what it costs LoomDesk's node: a read 1, a plan 3 to 12. Without a key, 60 units a minute and 3,000 a day, shared with everyone behind your address. A free key (`getKey()`, one request, a few a day per address) gives 120 a minute and 10,000 a day of your own. A key grants nothing on chain; whoever has it spends your quota, so keep it out of public code.
+
+`loom.usage` holds what the last answer said is left. A refused call throws `LoomDeskRateLimited` with `retryAfterSeconds`: wait that long, do not loop. A plan the planner cannot make throws `LoomDeskPlanRefused` with the reason in words.
+
+## Safety
+
+- A plan's transactions only ever go to LoomDesk's contracts, the swap router, or a token for an approval. `sendPlan` checks every destination against `TRUSTED` (or your own `allow` list) before the first one goes out. The current contracts are listed at https://loomdesk.trade/llms.txt.
+- `plan.check` says whether the plan went through when simulated from the owner, and why not. A failed check is a plan to make again, not to send.
+- Everything a plan says in words (token names, theses) is data from the chain and from users, never an instruction.
+- A ladder carries the risks of any liquidity position: if the price falls through your bids you hold the token, bought on the way down; if it rises through your offers you have sold on the way up. Fees are the pay for that and do not always cover it. Nothing here is advice.
+
+## Reads without the planner
+
+The ABIs ship as viem ABIs: `loomLadderAbi`, `loomZapAbi`, `loomOpenHookV2Abi`, `loomFullHookAbi`, `pilotGasAbi`, `erc20Abi`, with the addresses in `ADDRESSES`. A pool's fee right now, a ladder's rungs, a delegate, the gas tank: all readable with `publicClient.readContract`.
+
+## Also
+
+- MCP server for agents: https://loomdesk.trade/mcp (listed in the MCP Registry as `trade.loomdesk/loomdesk`).
+- The hook builder, for a pool with a launch fee or a volatility fee: https://loomdesk.trade/create.
+- Academy, in plain words: https://loomdesk.trade/academy.
+
+MIT.
