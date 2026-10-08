@@ -31,8 +31,20 @@ if (NEW) {
     throw new Error("a launch fee under the swap fee was accepted");
   } catch (e) { console.log(`a bad hook choice throws: ${e.message.slice(0, 90)}`); }
 } else console.log("hook presets: set LOOMDESK_NEW_TOKEN to a token with no pool on the hooks to plan them");
-import { HOOK_PRESETS } from "../dist/index.js";
+import { HOOK_PRESETS, checkHook, feeAt, launchCurve, hookPoolId, HookChoiceError } from "../dist/index.js";
 if (HOOK_PRESETS.launch.launchFeePct !== 50 || HOOK_PRESETS.full.kind !== "full") throw new Error("HOOK_PRESETS is wrong");
+// the fee rule, reckoned as the contracts reckon it
+const rule = checkHook({ preset: "launch" });
+const at0 = feeAt(rule).feePct, at30 = feeAt(rule, { minutesAfterOpen: 30 }).feePct, at60 = feeAt(rule, { minutesAfterOpen: 60 }).feePct;
+if (at0 !== 50 || Math.abs(at30 - 27.5) > 0.01 || at60 !== 5) throw new Error(`launch curve wrong: ${at0} ${at30} ${at60}`);
+if (feeAt(rule, { minutesAfterOpen: 90, movePct: 1 }).parts.volatility !== 0 || feeAt(rule, { minutesAfterOpen: 90, movePct: 10 }).parts.volatility <= 0) throw new Error("volatility add wrong");
+const full = checkHook({ preset: "full" });
+if (feeAt(full, { gapPct: 2 }).parts.capture !== 0 || !(feeAt(full, { gapPct: 20 }).parts.capture > 0) || feeAt(full, { gapPct: 80 }).feePct > 50) throw new Error("capture wrong");
+if (launchCurve(rule).at(-1).minute !== 60) throw new Error("launchCurve wrong");
+let threw = false; try { checkHook({ launchFeePct: 0.5, launchMinutes: 10 }, 1); } catch (e) { threw = e instanceof HookChoiceError; }
+if (!threw) throw new Error("checkHook let a launch fee under the swap fee through");
+if (!/^0x[0-9a-f]{64}$/.test(hookPoolId(LOOM, "ETH", "ranges", 1))) throw new Error("hookPoolId wrong");
+console.log("hook math: launch 50% -> 27.5% at 30 min -> 5% at 60; volatility and capture add past their floors; a bad choice throws");
 
 const delegated = readDelegate((BigInt(perms("collect", "rules")) << 160n) | BigInt("0x2f7CE7eeF4b091E0827dA1E8C2E10D061d95d180"));
 if (delegated?.perms !== DELEGATE.collect + DELEGATE.rules || !delegated.may.collect || delegated.may.remove) throw new Error("readDelegate is wrong");

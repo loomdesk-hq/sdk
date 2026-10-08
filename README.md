@@ -102,6 +102,24 @@ const full = await planLaunch(loom, { token, quote: "USDG", payIn: "USDG", amoun
 console.log(full.hook.fee, full.transactions.map((t) => t.step));
 ```
 
+Preview the rule before you open it, and read a pool after:
+
+```js
+import { checkHook, feeAt, launchCurve, hookPoolId, hookPool, feeNow, hookSettings } from "loomdesk-sdk";
+
+const rule = checkHook({ preset: "launch" });                 // throws HookChoiceError with the reason when the choice is not one the contract takes
+feeAt(rule, { minutesAfterOpen: 5 }).text;                    // "46.25%": five minutes in, a quiet market
+feeAt(rule, { minutesAfterOpen: 70, movePct: 8 }).parts;      // after the launch, an 8% move since the last swap: { base: 50000, launch: 0, volatility: ..., capture: 0 }
+launchCurve(rule);                                            // [{ minute: 0, feePct: 50 }, { minute: 1, feePct: 49.25 }, ... { minute: 60, feePct: 5 }]
+
+const id = hookPoolId(token, "ETH", "ranges", 2);              // the pool's id, no call: one pool per pair and spacing (1% to 5% share one)
+await hookPool(publicClient, id, "ranges");                   // null, or { feePct, creator, openedAt, launchFeePct, launchMinutes, volatility }
+await feeNow(publicClient, id, "ranges");                     // what a swap pays this second: { feePct, basePct, launchPct, volatilityPct }
+await hookSettings(publicClient);                             // the live volatility and capture settings, for feeAt's exact figure
+```
+
+The fee math is the contracts' own (`LoomOpenHookV2._fee`, `LoomFullHook._fee`) in TypeScript, the same the site's builder draws from, so what you preview is what the pool charges.
+
 Limits, checked before a plan is made and again by the contract: the launch fee is above the swap fee and at most 50%, it falls over 1 to 1440 minutes, the volatility fee is a ranges pool's only, and a full-range pool takes a 1% to 5% tier against ETH or USDG. A plain ranges pool is opened inside the build's own transaction; a launch fee, the volatility fee or the full hook are opened by the hook's own call in a transaction before it, and the plan returns both, in order, simulated as a sequence. `plan.hook` says what was chosen, `plan.hookNotes` what the server did with it (an existing pool of the pair used, `fullRange` set for a full-range pool). The same options are on the MCP tools `plan_open_pool` and `plan_build` as `hook`, and in the site's builder at https://loomdesk.trade/create.
 
 ## Paint your own shape

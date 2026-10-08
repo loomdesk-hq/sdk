@@ -4,6 +4,8 @@ export { sendPlan, assertSendable } from "./send.js";
 export type { SendOptions } from "./send.js";
 export { planLaunch, readDelegate, perms } from "./launch.js";
 export { HOOK_PRESETS } from "./types.js";
+export { checkHook, feeAt, launchCurve, hookPoolKey, hookPoolId, poolIdOf, hookPool, feeNow, hookSettings, launchAdds, volAdds, captureOf, rangedFee, fullFee, ticksOf, pipsPct, HookChoiceError, HOOK_LIMITS, SPACING_OF, FEE_CAP, BAND_FLOOR, VOL_DEFAULT, GAP_DEFAULT } from "./hooks.js";
+export type { HookRule, VolSettings, GapSettings } from "./hooks.js";
 export type { LaunchAsk, LaunchPlan } from "./launch.js";
 export { robinhoodChain, CHAIN_ID, ADDRESSES, LEGACY_LADDERS, TRUSTED, DELEGATE } from "./contracts.js";
 export { erc20Abi, loomLadderAbi, loomZapAbi, loomOpenHookV2Abi, loomFullHookAbi, pilotGasAbi } from "./abis.js";
