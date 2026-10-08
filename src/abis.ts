@@ -87,6 +87,19 @@ export const loomOpenHookV2Abi = parseAbi([
   "error BadLaunch()", "error BadVol()", "error BadQuote()", "error BadTier()", "error BadPrice()", "error BadReference()", "error Exists()", "error IsPaused()", "error WrongFee()", "error SendFailed()",
 ]);
 
+/** LoomBlocksHook: the open hook with the creator's blocks, set at opening; V2's calls still work on it. */
+export const loomBlocksHookAbi = parseAbi([
+  "struct PoolKey { address currency0; address currency1; uint24 fee; int24 tickSpacing; address hooks; }",
+  "struct Blocks { uint8 mask; uint32 snipeSecs; uint128 snipeMaxQuote; uint24 royalty; uint24 burn; uint32 sellLockSecs; uint24 feeFloor; uint24 feeCeil; uint24 offHoursFee; }",
+  "function createPoolBlocks(address token, address quote, uint24 fee, uint160 sqrtPriceX96, PoolKey refKey, bool vol, uint24 launchFee, uint32 launchSecs, Blocks b) payable returns (bytes32)",
+  "function feeNow(bytes32 poolId) view returns (uint24 fee, uint24 base, uint24 launch, uint24 volatility, uint24 royalty, uint24 burn)",
+  "function pools(bytes32) view returns (uint24 fee, bool quoteIs0, address creator, bool vol, uint24 launchFee, uint32 launchSecs, uint32 openedAt, int24 spacing, uint8 blocks)",
+  "function blocksOf(bytes32) view returns (uint8 mask, uint32 snipeSecs, uint128 snipeMaxQuote, uint24 royalty, uint24 burn, uint32 sellLockSecs, uint24 feeFloor, uint24 feeCeil, uint24 offHoursFee)",
+  "function setFee(bytes32 poolId, uint24 fee)",
+  "function marketOpen() view returns (bool)",
+  "error BadBlocks()", "error SellLocked(uint32 until)", "error SnipeTooBig(uint256 quoteAmount, uint256 most)", "error NotCreator()", "error FeeOutOfBounds()", "error TooSoon()",
+]);
+
 /** LoomFullHook: full-range pools anyone opens, every fee in the quote; a swap that closes a wide gap to the token's market pays for it. */
 export const loomFullHookAbi = parseAbi([
   "function createPool(address token, address quote, uint24 fee, uint160 sqrtPriceX96, address ref, uint24 launchFee, uint32 launchSecs) payable returns (bytes32)",

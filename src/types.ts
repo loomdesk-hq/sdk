@@ -134,6 +134,25 @@ export type HookOptions = {
   launchMinutes?: number;
   /** ranges only: a fee that rises for a while after the price moves (a move under 3% adds nothing; the add fades within minutes) */
   volatility?: boolean;
+  /** ranges only, on LoomBlocksHook: the creator's blocks, each enforced by the hook in every swap and fixed at
+   *  opening. A trader always pays the pool's fee and no more: the royalty and the burn come out of it. */
+  blocks?: HookBlocks;
+};
+/** The blocks of LoomBlocksHook. A field present switches its block on. */
+export type HookBlocks = {
+  /** anti-snipe: the most a single buy may spend of the quote (ETH or USDG, whole units) for the first antiSnipeMinutes */
+  antiSnipeMaxQuote?: number;
+  antiSnipeMinutes?: number;
+  /** royalty: this percent of the base fee goes to the pool's creator in the quote, every swap; at most 30 */
+  royaltyPct?: number;
+  /** auto burn: this percent of the base fee is burned in the token on every sell; at most 20 */
+  burnPct?: number;
+  /** sell lock: no sells for the first so many minutes (1 to 1440); liquidity can always be removed */
+  sellLockMinutes?: number;
+  /** managed fee: the creator may later move the base fee between these tiers (1 to 5 share a spacing; 0.1 and 0.5 stand alone), an hour apart */
+  managedFee?: { floorPct: number; ceilPct: number };
+  /** market hours: outside NYSE hours (weekdays, 13:30 to 20:00 UTC as set) the base fee is this tier instead */
+  offHoursFeePct?: number;
 };
 export type HookPreset = "steady" | "volatile" | "launch" | "full";
 /** The presets by name, as the server resolves them. */
@@ -144,7 +163,7 @@ export const HOOK_PRESETS: Record<HookPreset, Required<Pick<HookOptions, "kind" 
   full: { kind: "full", feePct: 1, launchFeePct: 10, launchMinutes: 10, volatility: false, note: "full range only, 1% in the quote, opens at 10% for ten minutes; arbitrage pays the gap" },
 };
 /** What a plan says about the hook it opens the pool on. */
-export type HookChosen = { kind: "ranges" | "full"; address: Address; preset?: HookPreset; feePct: number; launchFeePct: number; launchMinutes: number; volatility: boolean; /** the fee rule in words */ fee: string };
+export type HookChosen = { kind: "ranges" | "full"; address: Address; preset?: HookPreset; feePct: number; launchFeePct: number; launchMinutes: number; volatility: boolean; /** the fee rule in words */ fee: string; blocks?: HookBlocks; /** each block in words */ blockRules?: string[] };
 
 /** A new pool on one of LoomDesk's hooks for a token against ETH, USDG or another quote. About a dollar once. */
 export type OpenPoolAsk = { token: Address; quote: "ETH" | "USDG" | Address; /** the swap fee, percent; left out: the preset's, else 1 */ feePct?: number; owner: Address; /** which hook and with what; left out: the plain ranges pool */ hook?: HookOptions };

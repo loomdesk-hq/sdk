@@ -44,6 +44,12 @@ if (launchCurve(rule).at(-1).minute !== 60) throw new Error("launchCurve wrong")
 let threw = false; try { checkHook({ launchFeePct: 0.5, launchMinutes: 10 }, 1); } catch (e) { threw = e instanceof HookChoiceError; }
 if (!threw) throw new Error("checkHook let a launch fee under the swap fee through");
 if (!/^0x[0-9a-f]{64}$/.test(hookPoolId(LOOM, "ETH", "ranges", 1))) throw new Error("hookPoolId wrong");
+const withBlocks = checkHook({ blocks: { royaltyPct: 20, burnPct: 10, antiSnipeMaxQuote: 0.05, antiSnipeMinutes: 10 } }, 3);
+const parts = feeAt(withBlocks).parts;
+if (parts.royalty !== 6000 || parts.burnOnSells !== 3000) throw new Error(`block parts wrong: ${JSON.stringify(parts)}`);
+let threw2 = false; try { checkHook({ blocks: { royaltyPct: 31 } }, 1); } catch (e) { threw2 = e instanceof HookChoiceError; }
+if (!threw2) throw new Error("checkHook let a 31% royalty through");
+console.log("blocks: a 3% pool with a 20% royalty and a 10% burn gives 0.6% and 0.3% of every swap; a 31% royalty throws");
 console.log("hook math: launch 50% -> 27.5% at 30 min -> 5% at 60; volatility and capture add past their floors; a bad choice throws");
 
 const delegated = readDelegate((BigInt(perms("collect", "rules")) << 160n) | BigInt("0x2f7CE7eeF4b091E0827dA1E8C2E10D061d95d180"));

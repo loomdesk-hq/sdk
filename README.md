@@ -120,6 +120,30 @@ await hookSettings(publicClient);                             // the live volati
 
 The fee math is the contracts' own (`LoomOpenHookV2._fee`, `LoomFullHook._fee`) in TypeScript, the same the site's builder draws from, so what you preview is what the pool charges.
 
+### Blocks
+
+On LoomBlocksHook a ranges pool can carry blocks: switches the creator sets at opening, each enforced by the hook in every swap and fixed for the pool's life. A trader always pays the pool's fee and no more; the royalty and the burn come out of that fee, and the liquidity gets the rest.
+
+| Block | Field | What it does |
+|---|---|---|
+| Anti-snipe | `antiSnipeMaxQuote`, `antiSnipeMinutes` | for the first minutes no single buy may spend more than so much ETH or USDG |
+| Royalty | `royaltyPct` | this share of the base fee (up to 30%) goes to the creator, in the quote, every swap |
+| Auto burn | `burnPct` | this share of the base fee (up to 20%) is burned in the token on every sell |
+| Sell lock | `sellLockMinutes` | no sells for the first minutes (up to a day); liquidity can always be removed |
+| Managed fee | `managedFee: { floorPct, ceilPct }` | the creator may later move the base fee between these tiers, an hour apart (`setFee` on the hook) |
+| Market hours | `offHoursFeePct` | outside NYSE hours the base fee is this tier instead |
+
+```js
+const plan = await planLaunch(loom, {
+  token, quote: "ETH", feePct: 3, payIn: "ETH", amount: "0.5", owner,
+  hook: { launchFeePct: 30, launchMinutes: 30, volatility: true,
+          blocks: { antiSnipeMaxQuote: 0.05, antiSnipeMinutes: 10, royaltyPct: 20, burnPct: 10, sellLockMinutes: 5 } },
+});
+console.log(plan.hook.blockRules);   // each block in words, as the contract will enforce it
+```
+
+`checkHook` checks the blocks too, and `feeAt(...).parts` shows the royalty and the burn as parts of the base fee. What the hook takes for the book on these pools is not kept: it buys LOOM in the book's pool and burns it.
+
 Limits, checked before a plan is made and again by the contract: the launch fee is above the swap fee and at most 50%, it falls over 1 to 1440 minutes, the volatility fee is a ranges pool's only, and a full-range pool takes a 1% to 5% tier against ETH or USDG. A plain ranges pool is opened inside the build's own transaction; a launch fee, the volatility fee or the full hook are opened by the hook's own call in a transaction before it, and the plan returns both, in order, simulated as a sequence. `plan.hook` says what was chosen, `plan.hookNotes` what the server did with it (an existing pool of the pair used, `fullRange` set for a full-range pool). The same options are on the MCP tools `plan_open_pool` and `plan_build` as `hook`, and in the site's builder at https://loomdesk.trade/create.
 
 ## Paint your own shape

@@ -63,7 +63,21 @@ export function fullFee(base: number, launch: number, capture: number): { fee: n
 }
 
 /** A creator's choice, resolved: the preset filled in, the fields given on top, the fee as a percent. */
-export type HookRule = { kind: "ranges" | "full"; feePct: number; launchFeePct: number; launchMinutes: number; volatility: boolean };
+export type HookRule = { kind: "ranges" | "full"; feePct: number; launchFeePct: number; launchMinutes: number; volatility: boolean; blocks?: HookOptions["blocks"] };
+/** The blocks' limits (LoomBlocksHook): ROYALTY_CEILING, BURN_CEILING, WINDOW_FLOOR and CEILING. */
+export const BLOCK_LIMITS = { royaltyPctMax: 30, burnPctMax: 20, windowMinutesMin: 1, windowMinutesMax: 1440 } as const;
+/** The blocks checked as the contract checks them; throws HookChoiceError with the reason. */
+export function checkBlocks(b: HookOptions["blocks"], feePct: number): void {
+  if (!b) return;
+  const spacing = (pct: number) => SPACING_OF[String(pct)] ?? 0;
+  const minutes = (m: number | undefined, what: string) => { if (m === undefined || !Number.isInteger(m) || m < BLOCK_LIMITS.windowMinutesMin || m > BLOCK_LIMITS.windowMinutesMax) throw new HookChoiceError(`${what} is a whole number of minutes from ${BLOCK_LIMITS.windowMinutesMin} to ${BLOCK_LIMITS.windowMinutesMax}.`); };
+  if (b.antiSnipeMaxQuote !== undefined || b.antiSnipeMinutes !== undefined) { if (!(Number(b.antiSnipeMaxQuote) > 0)) throw new HookChoiceError("blocks.antiSnipeMaxQuote is the most one buy may spend of the quote, above zero."); minutes(b.antiSnipeMinutes, "blocks.antiSnipeMinutes"); }
+  if (b.royaltyPct !== undefined && (!(b.royaltyPct > 0) || b.royaltyPct > BLOCK_LIMITS.royaltyPctMax)) throw new HookChoiceError(`blocks.royaltyPct is above zero and at most ${BLOCK_LIMITS.royaltyPctMax}.`);
+  if (b.burnPct !== undefined && (!(b.burnPct > 0) || b.burnPct > BLOCK_LIMITS.burnPctMax)) throw new HookChoiceError(`blocks.burnPct is above zero and at most ${BLOCK_LIMITS.burnPctMax}.`);
+  if (b.sellLockMinutes !== undefined) minutes(b.sellLockMinutes, "blocks.sellLockMinutes");
+  if (b.managedFee) { const { floorPct, ceilPct } = b.managedFee; if (!spacing(floorPct) || !spacing(ceilPct) || spacing(floorPct) !== spacing(feePct) || spacing(ceilPct) !== spacing(feePct) || floorPct > feePct || ceilPct < feePct) throw new HookChoiceError(`blocks.managedFee needs floorPct <= ${feePct} <= ceilPct, tiers of the fee's own spacing.`); }
+  if (b.offHoursFeePct !== undefined && (!spacing(b.offHoursFeePct) || spacing(b.offHoursFeePct) !== spacing(feePct))) throw new HookChoiceError("blocks.offHoursFeePct is a tier of the fee's own spacing.");
+}
 export class HookChoiceError extends Error {}
 /** The choice checked as the planner and the contracts check it; throws HookChoiceError with the reason. `feePct` left out: the preset's, else 1. */
 export function checkHook(hook: HookOptions | undefined, feePct?: number): HookRule {
@@ -81,7 +95,10 @@ export function checkHook(hook: HookOptions | undefined, feePct?: number): HookR
   if (launchMinutes > 0 && (launchMinutes < HOOK_LIMITS.launchMinutesMin || launchMinutes > HOOK_LIMITS.launchMinutesMax || !Number.isInteger(launchMinutes))) throw new HookChoiceError(`hook.launchMinutes is a whole number from ${HOOK_LIMITS.launchMinutesMin} to ${HOOK_LIMITS.launchMinutesMax}.`);
   const volatility = hook?.volatility ?? preset?.volatility ?? false;
   if (volatility && kind === "full") throw new HookChoiceError("The volatility fee is a ranges pool's; a full-range pool charges arbitrage by the gap instead.");
-  return { kind, feePct: pct, launchFeePct, launchMinutes, volatility };
+  const hasBlocks = Boolean(hook?.blocks && Object.values(hook.blocks).some((v) => v !== undefined));
+  if (hasBlocks && kind === "full") throw new HookChoiceError("Blocks are a ranges pool's; a full-range pool takes none.");
+  if (hasBlocks) checkBlocks(hook!.blocks, pct);
+  return { kind, feePct: pct, launchFeePct, launchMinutes, volatility, ...(hasBlocks ? { blocks: hook!.blocks } : {}) };
 }
 
 /** What a swap pays under a rule at a moment: `minutesAfterOpen` into the launch, after a `movePct` move since the last
@@ -93,11 +110,14 @@ export function feeAt(rule: HookRule, at: { minutesAfterOpen?: number; movePct?:
   if (rule.kind === "full") {
     const capture = captureOf(at.gapPct ?? 0, base, settings.gap ?? GAP_DEFAULT);
     const f = fullFee(base, launch, capture);
-    return { feePct: f.fee / 10_000, fee: f.fee, text: pipsPct(f.fee), parts: { base, launch: f.capture ? 0 : launch, volatility: 0, capture: f.capture ? f.fee : 0 } };
+    return { feePct: f.fee / 10_000, fee: f.fee, text: pipsPct(f.fee), parts: { base, launch: f.capture ? 0 : launch, volatility: 0, capture: f.capture ? f.fee : 0, royalty: 0, burnOnSells: 0 } };
   }
   const vol = rule.volatility ? volAdds(at.movePct ?? 0, settings.vol ?? VOL_DEFAULT) : 0;
   const f = rangedFee(base, launch, vol);
-  return { feePct: f.fee / 10_000, fee: f.fee, text: pipsPct(f.fee), parts: { base, launch: f.launch, volatility: f.vol, capture: 0 } };
+  // of the base fee, what the royalty and the burn take (the liquidity gets the rest, and all of the adds)
+  const royalty = rule.blocks?.royaltyPct ? Math.floor((base * Math.round(rule.blocks.royaltyPct * 10_000)) / 1_000_000) : 0;
+  const burn = rule.blocks?.burnPct ? Math.floor((base * Math.round(rule.blocks.burnPct * 10_000)) / 1_000_000) : 0;
+  return { feePct: f.fee / 10_000, fee: f.fee, text: pipsPct(f.fee), parts: { base, launch: f.launch, volatility: f.vol, capture: 0, royalty, burnOnSells: burn } };
 }
 /** The launch fee's path: what a plain swap pays at each minute from the open to the end of the launch (a quiet market). */
 export function launchCurve(rule: HookRule, minutes: number[] = [0, 1, 2, 5, 10, 15, 30, 45, 60, 90, 120, 180, 360, 720, 1440]): { minute: number; feePct: number }[] {
