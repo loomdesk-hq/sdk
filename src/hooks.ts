@@ -125,44 +125,45 @@ export function launchCurve(rule: HookRule, minutes: number[] = [0, 1, 2, 5, 10,
 }
 
 /** A hook pool's key for a token against a quote (ETH is the zero address), on the hook `kind` names at `feePct`. */
-export function hookPoolKey(token: Address, quote: Address | "ETH" | "USDG", kind: "ranges" | "full", feePct: number) {
+export function hookPoolKey(token: Address, quote: Address | "ETH" | "USDG", kind: "ranges" | "full", feePct: number, hook?: Address) {
   const q = (quote === "ETH" ? zeroAddress : quote === "USDG" ? ADDRESSES.usdg : quote) as Address;
   const spacing = kind === "full" ? 200 : SPACING_OF[String(feePct)];
   if (!spacing) throw new HookChoiceError("feePct is 0.1, 0.5, 1, 2, 3, 4 or 5 (percent).");
   const quoteIs0 = BigInt(q) < BigInt(token);
-  return { currency0: (quoteIs0 ? q : token) as Address, currency1: (quoteIs0 ? token : q) as Address, fee: DYNAMIC_FEE_FLAG, tickSpacing: spacing, hooks: kind === "full" ? ADDRESSES.loomFullHook : ADDRESSES.loomOpenHookV2 };
+  return { currency0: (quoteIs0 ? q : token) as Address, currency1: (quoteIs0 ? token : q) as Address, fee: DYNAMIC_FEE_FLAG, tickSpacing: spacing, hooks: kind === "full" ? ADDRESSES.loomFullHook : hook ?? ADDRESSES.loomBlocksHook };
 }
 /** A pool's id from its key (Uniswap v4). One pool per pair and spacing: the 1% to 5% tiers share one. */
 export function poolIdOf(k: { currency0: Address; currency1: Address; fee: number; tickSpacing: number; hooks: Address }): `0x${string}` {
   return keccak256(encodeAbiParameters([{ type: "address" }, { type: "address" }, { type: "uint24" }, { type: "int24" }, { type: "address" }], [k.currency0, k.currency1, k.fee, k.tickSpacing, k.hooks]));
 }
-export const hookPoolId = (token: Address, quote: Address | "ETH" | "USDG", kind: "ranges" | "full", feePct: number) => poolIdOf(hookPoolKey(token, quote, kind, feePct));
+/** A pool's id on the current hooks; pass `hook` for a pool on an earlier one (loomOpenHookV2). */
+export const hookPoolId = (token: Address, quote: Address | "ETH" | "USDG", kind: "ranges" | "full", feePct: number, hook?: Address) => poolIdOf(hookPoolKey(token, quote, kind, feePct, hook));
 
 /** A hook pool's record, or null when the pair has none there: the swap fee, who opened it and when, its launch fee and
  *  volatility flag (ranges) or its Uniswap v3 reference (full). */
-export async function hookPool(client: PublicClient, poolId: `0x${string}`, kind: "ranges" | "full") {
+export async function hookPool(client: PublicClient, poolId: `0x${string}`, kind: "ranges" | "full", hook: Address = kind === "full" ? ADDRESSES.loomFullHook : ADDRESSES.loomBlocksHook) {
   if (kind === "full") {
     const p = await client.readContract({ address: ADDRESSES.loomFullHook, abi: loomFullHookAbi, functionName: "pools", args: [poolId] });
     if (p[0] === 0) return null;
     return { kind, feePct: p[0] / 10_000, quoteIs0: p[1], creator: p[2] as Address, launchFeePct: p[3] / 10_000, launchMinutes: p[4] / 60, openedAt: new Date(p[5] * 1000), volatility: false, reference: p[6] === zeroAddress ? null : (p[6] as Address) };
   }
-  const p = await client.readContract({ address: ADDRESSES.loomOpenHookV2, abi: loomOpenHookV2Abi, functionName: "pools", args: [poolId] });
+  const p = await client.readContract({ address: hook, abi: loomOpenHookV2Abi, functionName: "pools", args: [poolId] });
   if (p[0] === 0) return null;
   return { kind, feePct: p[0] / 10_000, quoteIs0: p[1], creator: p[2] as Address, volatility: p[3], launchFeePct: p[4] / 10_000, launchMinutes: p[5] / 60, openedAt: new Date(p[6] * 1000), reference: null };
 }
 /** What a swap in a hook pool pays right now, as the hook would charge it, with the parts. */
-export async function feeNow(client: PublicClient, poolId: `0x${string}`, kind: "ranges" | "full") {
+export async function feeNow(client: PublicClient, poolId: `0x${string}`, kind: "ranges" | "full", hook: Address = kind === "full" ? ADDRESSES.loomFullHook : ADDRESSES.loomBlocksHook) {
   if (kind === "full") {
     const [buy, sell, base, launch, gapPips, priced] = await client.readContract({ address: ADDRESSES.loomFullHook, abi: loomFullHookAbi, functionName: "feeNow", args: [poolId] });
     return { kind, buyPct: buy / 10_000, sellPct: sell / 10_000, basePct: base / 10_000, launchPct: launch / 10_000, gapPct: gapPips / 10_000, priced };
   }
-  const [fee, base, launch, volatility] = await client.readContract({ address: ADDRESSES.loomOpenHookV2, abi: loomOpenHookV2Abi, functionName: "feeNow", args: [poolId] });
+  const [fee, base, launch, volatility] = await client.readContract({ address: hook, abi: loomOpenHookV2Abi, functionName: "feeNow", args: [poolId] });
   return { kind, feePct: fee / 10_000, basePct: base / 10_000, launchPct: launch / 10_000, volatilityPct: volatility / 10_000 };
 }
 /** The hooks' live settings for the volatility fee and the arbitrage capture, for `feeAt`. */
 export async function hookSettings(client: PublicClient): Promise<{ vol: VolSettings; gap: GapSettings & { window: number } }> {
   const [v, g] = await Promise.all([
-    client.readContract({ address: ADDRESSES.loomOpenHookV2, abi: loomOpenHookV2Abi, functionName: "vol" }),
+    client.readContract({ address: ADDRESSES.loomBlocksHook, abi: loomOpenHookV2Abi, functionName: "vol" }),
     client.readContract({ address: ADDRESSES.loomFullHook, abi: loomFullHookAbi, functionName: "gap" }),
   ]);
   return { vol: { slope: v[0], free: v[1], max: v[2], fall: v[3] }, gap: { slope: g[0], plus: g[1], cap: g[2], window: g[3] } };

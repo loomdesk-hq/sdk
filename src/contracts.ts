@@ -23,7 +23,12 @@ export const ADDRESSES = {
   loomZap: "0x345d539094485888038Ca444E03b8eE52e68afAC" as Address,
   /** the autopilot's gas tank */
   pilotGas: "0x86B5776F64fF26943724C0E5117c0b1b58d15f90" as Address,
-  /** pools anyone can open, any range: 0.1%, 0.5%, 1% to 5%, with a launch fee and a volatility fee if wanted */
+  /** the open hook new pools go on since 9 October 2026: any range, 0.1% to 5%, a launch fee, a volatility fee and the
+   *  creator's blocks if wanted; what it takes for the book is burned as LOOM through the burner */
+  loomBlocksHook: "0x8A82E05AA319E506631810D1dC1f20BE248C20cc" as Address,
+  /** where the blocks hook's share goes: everything that lands there ends as LOOM burned */
+  loomBurner: "0x98Ec6E06482765795c21B3eF39Faa3bE1674a87B" as Address,
+  /** the open hook before it (pools opened there stay there): any range, a launch fee and a volatility fee if wanted */
   loomOpenHookV2: "0x809397880B3A31C4E88cf6Aba367a45509e320CC" as Address,
   /** full-range pools anyone can open, every fee in the quote, arbitrage pays the gap */
   loomFullHook: "0x3AD87F5b9cf8F17eD39d787Eef3d9D19053D28Cc" as Address,
@@ -56,7 +61,7 @@ export const LEGACY_LADDERS: Address[] = [
 
 /** Where a plan's transactions may go, by default: LoomDesk's contracts, the swap router, USDG and WETH (approvals). */
 export const TRUSTED: Address[] = [
-  ADDRESSES.loomLadder, ADDRESSES.loomZap, ADDRESSES.pilotGas, ADDRESSES.loomOpenHookV2, ADDRESSES.loomFullHook,
+  ADDRESSES.loomLadder, ADDRESSES.loomZap, ADDRESSES.pilotGas, ADDRESSES.loomBlocksHook, ADDRESSES.loomOpenHookV2, ADDRESSES.loomFullHook,
   ADDRESSES.swapRouter, ADDRESSES.usdg, ADDRESSES.weth, ...LEGACY_LADDERS,
 ];
 
