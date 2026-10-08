@@ -94,7 +94,7 @@ export type LimitAsk = {
   closeOnceFilled?: boolean;
 };
 
-export type LadderAction = "collect" | "close" | "close_part" | "take_nfts" | "close_once_filled" | "give" | "delegate";
+export type LadderAction = "collect" | "close" | "close_part" | "take_nfts" | "close_once_filled" | "give" | "delegate" | "lock" | "collect_locked";
 
 /** Something done to a ladder you own, or are the delegate of. */
 export type ActionAsk = {
@@ -116,6 +116,10 @@ export type ActionAsk = {
   who?: Address;
   /** delegate: permissions summed: 1 add, 2 remove, 4 collect, 8 rules; 0 ends the delegation */
   perms?: number;
+  /** lock: who collects the locked ladder's fees from then on (the owner when left out). The liquidity can never be taken out again. */
+  beneficiary?: Address;
+  /** lock: true burns the liquidity outright, the fees staying in the pool with it */
+  burn?: boolean;
 };
 
 /** Which hook a new pool goes on, and with what. Every field is optional: a preset fills the rest, a field given beside

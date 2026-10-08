@@ -49,7 +49,7 @@ const hashes = await sendPlan(plan, { walletClient, publicClient });
 | `planBuild(ask)` | one transaction from ETH or USDG to a ladder; opens a pool on LoomDesk's hook on the way when the pair has none |
 | `planLadder(ask)` | a ladder from assets the wallet already holds, one side or both |
 | `planLimit(ask)` | a limit buy or sell: rungs at a price, closed for you once filled |
-| `planAction(ask)` | collect, close, close part, take the NFTs, set the fill rule, give the ladder away, delegate it |
+| `planAction(ask)` | collect, close, close part, take the NFTs, set the fill rule, give the ladder away, delegate it, lock it for good |
 | `planOpenPool(ask)` | a new pool on one of the hooks, on its own, with the creator's `hook` choices |
 | `planSwap(ask)` | a swap through Nordstern's aggregator |
 | `token(address)` | a token as LoomDesk measures it |
@@ -184,6 +184,18 @@ await loom.planAction({ ladderId: "12", owner, action: "delegate", who: "0xAgent
 ```
 
 A delegate is never paid by the ladder: the contract refuses any destination but the owner. Give `remove` only to something you would let close for you, and `rules` only to something you would let spend your gas tank on the autopilot.
+
+## Lock liquidity for good
+
+A launch earns trust by making its liquidity impossible to pull. `lock` gives a ladder to LoomLock, a contract with no close, no withdrawal, no delegate and no owner: the liquidity stays in the pool for as long as the pool exists. The fees it earns are still yours, or whoever you name, and that right can be passed on. `burn: true` locks with nobody as the beneficiary, so the fees stay in the pool too.
+
+```js
+const plan = await loom.planAction({ ladderId, owner, action: "lock" });            // three transactions: name yourself, give, seal
+await sendPlan(plan, { walletClient, publicClient });
+const fees = await loom.planAction({ ladderId, owner, action: "collect_locked" }); // later: the fees, to you
+```
+
+Anyone can read a locked ladder on chain: `isLocked(ladderId)` and `beneficiary(ladderId)` on the lock, `ladder(ladderId).owner` on LoomLadder is the lock's address. The lock takes ladders on the current LoomLadder only.
 
 ## Keys and quotas
 
