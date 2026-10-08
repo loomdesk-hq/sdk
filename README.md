@@ -50,7 +50,7 @@ const hashes = await sendPlan(plan, { walletClient, publicClient });
 | `planLadder(ask)` | a ladder from assets the wallet already holds, one side or both |
 | `planLimit(ask)` | a limit buy or sell: rungs at a price, closed for you once filled |
 | `planAction(ask)` | collect, close, close part, take the NFTs, set the fill rule, give the ladder away, delegate it |
-| `planOpenPool(ask)` | a new pool on the hook, on its own |
+| `planOpenPool(ask)` | a new pool on one of the hooks, on its own, with the creator's `hook` choices |
 | `planSwap(ask)` | a swap through Nordstern's aggregator |
 | `token(address)` | a token as LoomDesk measures it |
 | `ladders(address)` | a wallet's ladders on every LoomLadder, with rungs, fees waiting, value and history |
@@ -77,7 +77,32 @@ console.log(plan.opensPool, plan.check);
 await sendPlan(plan, { walletClient, publicClient });
 ```
 
-The pool opens at the token's existing market price, read from its deepest pool. The launch fee and the volatility fee (a fee that rises for a while after the price moves) are set from the site's hook builder at https://loomdesk.trade/create; a plan opens a plain pool at the tier you name. A launchpad can make this its listing step: one call per token, the creator's wallet as `owner`.
+The pool opens at the token's existing market price, read from its deepest pool. A launchpad can make this its listing step: one call per token, the creator's wallet as `owner`.
+
+## Choose the hook
+
+A pool's fee rule is set when it opens and fixed after, so choose it in the plan. `hook` takes a preset or the fields themselves; a field given beside a preset wins. Without `hook`, the plan opens the plain pool at `feePct` and lists the presets under `options`.
+
+| Preset | Hook | What traders pay |
+|---|---|---|
+| `steady` | ranges | 1% on every swap, any band. The plain pool. |
+| `volatile` | ranges | 3%, and more for a while after the price moves (a move under 3% adds nothing; the add fades within minutes). |
+| `launch` | ranges | 5%; opens at 50% and falls in a straight line to 5% over an hour, so the first minutes of a launch pay the liquidity, not the snipers. Volatility fee on. |
+| `full` | full | One full-range position only, 1% taken in the quote (ETH or USDG); opens at 10% for ten minutes; a swap that closes a gap of 3% or more to the token's Uniswap v3 market pays for the gap instead (up to 40%). |
+
+```js
+// a token launch: 5%, 50% at the open falling to 5% over an hour, volatility fee on
+const launch = await planLaunch(loom, { token, quote: "ETH", payIn: "ETH", amount: "0.5", owner, hook: { preset: "launch" } });
+
+// your own: 2%, opening at 20% for thirty minutes, no volatility fee
+const own = await planLaunch(loom, { token, quote: "ETH", feePct: 2, payIn: "ETH", amount: "0.5", owner, hook: { launchFeePct: 20, launchMinutes: 30 } });
+
+// full range, fees in USDG, arbitrage pays the gap
+const full = await planLaunch(loom, { token, quote: "USDG", payIn: "USDG", amount: "500", owner, hook: { preset: "full" } });
+console.log(full.hook.fee, full.transactions.map((t) => t.step));
+```
+
+Limits, checked before a plan is made and again by the contract: the launch fee is above the swap fee and at most 50%, it falls over 1 to 1440 minutes, the volatility fee is a ranges pool's only, and a full-range pool takes a 1% to 5% tier against ETH or USDG. A plain ranges pool is opened inside the build's own transaction; a launch fee, the volatility fee or the full hook are opened by the hook's own call in a transaction before it, and the plan returns both, in order, simulated as a sequence. `plan.hook` says what was chosen, `plan.hookNotes` what the server did with it (an existing pool of the pair used, `fullRange` set for a full-range pool). The same options are on the MCP tools `plan_open_pool` and `plan_build` as `hook`, and in the site's builder at https://loomdesk.trade/create.
 
 ## Paint your own shape
 
@@ -138,7 +163,7 @@ The ABIs ship as viem ABIs: `loomLadderAbi`, `loomZapAbi`, `loomOpenHookV2Abi`, 
 ## Also
 
 - MCP server for agents: https://loomdesk.trade/mcp (listed in the MCP Registry as `trade.loomdesk/loomdesk`).
-- The hook builder, for a pool with a launch fee or a volatility fee: https://loomdesk.trade/create.
+- The hook builder, the same choices by hand: https://loomdesk.trade/create.
 - Academy, in plain words: https://loomdesk.trade/academy.
 
 MIT.

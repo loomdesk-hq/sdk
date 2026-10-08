@@ -1,6 +1,6 @@
 // Recipes on top of the planner: a token's first market on LoomDesk's hook with liquidity in it, in one transaction;
 // a delegate's permissions read back; the shape of a band as the site would show it.
-import type { Address, BuildAsk, Plan, Shape } from "./types.js";
+import type { Address, BuildAsk, HookChosen, HookOptions, Plan, Shape } from "./types.js";
 import type { LoomDesk } from "./client.js";
 import { DELEGATE } from "./contracts.js";
 
@@ -9,9 +9,13 @@ export type LaunchAsk = {
   token: Address;
   /** what it trades against: ETH, USDG, or any token with a real exit (2,000 USDG of liquidity and a route to USDG) */
   quote: "ETH" | "USDG" | Address;
-  /** the pool's swap fee in percent: 0.1 (rungs from 0.01% wide), 0.5 (from 0.1%), or 1 to 5 (from 2%). Nine tenths
-   *  of it to the liquidity, a tenth to LoomDesk. Ignored when the pair already has a pool on the hook. */
-  feePct: number;
+  /** the pool's swap fee in percent: 0.1 (rungs from 0.01% wide), 0.5 (from 0.1%), or 1 to 5 (from 2%); a full-range
+   *  pool takes 1 to 5. Nine tenths of it to the liquidity, a tenth to LoomDesk. Ignored when the pair already has a
+   *  pool on the hook. Left out with a preset: the preset's. */
+  feePct?: number;
+  /** which hook and with what: a preset (steady, volatile, launch, full) or the fields themselves. Left out: the plain
+   *  ranges pool at feePct. Set when the pool opens, fixed after. */
+  hook?: HookOptions;
   /** what the wallet pays with */
   payIn: "ETH" | "USDG";
   /** how much, as a decimal string: it buys the token side inside the transaction and fills both sides of the band */
@@ -31,8 +35,13 @@ export type LaunchAsk = {
 
 /** What a launch plan came back with, beside the plan itself. */
 export type LaunchPlan = Plan & {
-  /** the pool is opened inside this transaction (the pair had none on the hook) */
+  /** the pool is opened by this plan (the pair had none on the hook): inside the build's transaction for a plain
+   *  ranges pool, in a transaction of its own before it for a full-range pool, a launch fee or the volatility fee */
   opensPool: boolean;
+  /** the hook the pool is opened on and its fee rule, when the plan opens one */
+  hook?: HookChosen;
+  /** what the server did with the hook choice (an existing pool used, fullRange set for a full-range pool) */
+  hookNotes?: string[];
 };
 
 /**
@@ -43,13 +52,16 @@ export type LaunchPlan = Plan & {
  */
 export async function planLaunch(client: LoomDesk, ask: LaunchAsk): Promise<LaunchPlan> {
   const body: BuildAsk = {
-    token: ask.token, quote: ask.quote, payIn: ask.payIn, amount: ask.amount, owner: ask.owner, feePct: ask.feePct,
+    token: ask.token, quote: ask.quote, payIn: ask.payIn, amount: ask.amount, owner: ask.owner, feePct: ask.feePct, hook: ask.hook,
+    // a full-range hook takes one full-range position and nothing narrower
+    fullRange: ask.fullRange || ask.hook?.kind === "full" || ask.hook?.preset === "full" || undefined,
     lowPct: ask.fullRange ? undefined : ask.lowPct ?? -50, highPct: ask.fullRange ? undefined : ask.highPct ?? 100,
-    rungs: ask.rungs, shape: ask.shape, weights: ask.weights, fullRange: ask.fullRange, slippagePct: ask.slippagePct, referrer: ask.referrer,
+    rungs: ask.rungs, shape: ask.shape, weights: ask.weights, slippagePct: ask.slippagePct, referrer: ask.referrer,
   };
-  const plan = await client.planBuild(body);
+  const plan = await client.planBuild(body) as Plan & { hook?: HookChosen; hookNotes?: string[] };
   const pool = typeof plan.pool === "string" ? plan.pool : "";
-  return { ...plan, opensPool: /opened/i.test(pool) };
+  const opens = /opened/i.test(pool) || Boolean(plan.hook);
+  return { ...plan, opensPool: opens, ...(plan.hook ? { hook: plan.hook } : {}), ...(plan.hookNotes ? { hookNotes: plan.hookNotes } : {}) };
 }
 
 /** A delegate word from `delegateOf(ladderId)`, read back: who, and what they may do. Zero: no delegate. */

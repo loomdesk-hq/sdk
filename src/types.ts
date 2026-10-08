@@ -118,8 +118,36 @@ export type ActionAsk = {
   perms?: number;
 };
 
-/** A new pool on LoomOpenHookV2 for a token against ETH, USDG or another quote. About a dollar once. */
-export type OpenPoolAsk = { token: Address; quote: "ETH" | "USDG" | Address; feePct: number; owner: Address };
+/** Which hook a new pool goes on, and with what. Every field is optional: a preset fills the rest, a field given beside
+ *  it wins. Set when the pool opens, fixed after. The site's hook builder (loomdesk.trade/create) offers the same. */
+export type HookOptions = {
+  /** ranges (default): LoomOpenHookV2, any band, the fee taken in the asset paid in. full: LoomFullHook, one full-range
+   *  position only, every fee in the quote (ETH or USDG), and a swap that closes a gap of 3% or more to the token's
+   *  Uniswap v3 market pays for the gap instead of the base fee. */
+  kind?: "ranges" | "full";
+  /** steady: 1%, plain. volatile: 3%, volatility fee on. launch: 5%, opens at 50% and falls to 5% over an hour, volatility
+   *  fee on. full: full range, 1% in the quote, opens at 10% for ten minutes. */
+  preset?: HookPreset;
+  /** the fee the pool opens at, percent: above the swap fee, at most 50; falls in a straight line to the swap fee over launchMinutes */
+  launchFeePct?: number;
+  /** 1 to 1440 */
+  launchMinutes?: number;
+  /** ranges only: a fee that rises for a while after the price moves (a move under 3% adds nothing; the add fades within minutes) */
+  volatility?: boolean;
+};
+export type HookPreset = "steady" | "volatile" | "launch" | "full";
+/** The presets by name, as the server resolves them. */
+export const HOOK_PRESETS: Record<HookPreset, Required<Pick<HookOptions, "kind" | "launchFeePct" | "launchMinutes" | "volatility">> & { feePct: number; note: string }> = {
+  steady: { kind: "ranges", feePct: 1, launchFeePct: 0, launchMinutes: 0, volatility: false, note: "1% on every swap, any range; the plain pool" },
+  volatile: { kind: "ranges", feePct: 3, launchFeePct: 0, launchMinutes: 0, volatility: true, note: "3%, more while the price moves fast, any range" },
+  launch: { kind: "ranges", feePct: 5, launchFeePct: 50, launchMinutes: 60, volatility: true, note: "a token launch: 5%, opens at 50% and falls to 5% over an hour, volatility fee on" },
+  full: { kind: "full", feePct: 1, launchFeePct: 10, launchMinutes: 10, volatility: false, note: "full range only, 1% in the quote, opens at 10% for ten minutes; arbitrage pays the gap" },
+};
+/** What a plan says about the hook it opens the pool on. */
+export type HookChosen = { kind: "ranges" | "full"; address: Address; preset?: HookPreset; feePct: number; launchFeePct: number; launchMinutes: number; volatility: boolean; /** the fee rule in words */ fee: string };
+
+/** A new pool on one of LoomDesk's hooks for a token against ETH, USDG or another quote. About a dollar once. */
+export type OpenPoolAsk = { token: Address; quote: "ETH" | "USDG" | Address; /** the swap fee, percent; left out: the preset's, else 1 */ feePct?: number; owner: Address; /** which hook and with what; left out: the plain ranges pool */ hook?: HookOptions };
 
 /** One transaction from ETH or USDG to a ladder, the pool opened on LoomDesk's hook on the way when the pair has none. */
 export type BuildAsk = {
@@ -133,6 +161,9 @@ export type BuildAsk = {
   pool?: string;
   /** the swap fee for a pool that has to be opened: 0.1, 0.5, or 1 to 5 (percent) */
   feePct?: number;
+  /** for a pool that has to be opened: which hook and with what. A full-range pool, a launch fee or the volatility fee
+   *  are opened by the hook's own call in a transaction before the build; the plan returns both, in order. */
+  hook?: HookOptions;
   lowPct?: number;
   highPct?: number;
   rungs?: number;
