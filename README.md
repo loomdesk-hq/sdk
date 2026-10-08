@@ -142,7 +142,7 @@ const plan = await planLaunch(loom, {
 console.log(plan.hook.blockRules);   // each block in words, as the contract will enforce it
 ```
 
-`checkHook` checks the blocks too, and `feeAt(...).parts` shows the royalty and the burn as parts of the base fee. What the hook takes for the book on these pools is not kept: it buys LOOM in the book's pool and burns it.
+`checkHook` checks the blocks too, and `feeAt(...).parts` shows the royalty and the burn as parts of the base fee. What the hook takes for the book on these pools goes into the book's LOOM pairs as depth.
 
 Limits, checked before a plan is made and again by the contract: the launch fee is above the swap fee and at most 50%, it falls over 1 to 1440 minutes, the volatility fee is a ranges pool's only, and a full-range pool takes a 1% to 5% tier against ETH or USDG. A plain ranges pool is opened inside the build's own transaction; a launch fee, the volatility fee or the full hook are opened by the hook's own call in a transaction before it, and the plan returns both, in order, simulated as a sequence. `plan.hook` says what was chosen, `plan.hookNotes` what the server did with it (an existing pool of the pair used, `fullRange` set for a full-range pool). The same options are on the MCP tools `plan_open_pool` and `plan_build` as `hook`, and in the site's builder at https://loomdesk.trade/create.
 

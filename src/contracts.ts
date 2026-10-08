@@ -24,9 +24,9 @@ export const ADDRESSES = {
   /** the autopilot's gas tank */
   pilotGas: "0x86B5776F64fF26943724C0E5117c0b1b58d15f90" as Address,
   /** the open hook new pools go on since 9 October 2026: any range, 0.1% to 5%, a launch fee, a volatility fee and the
-   *  creator's blocks if wanted; what it takes for the book is burned as LOOM through the burner */
+   *  creator's blocks if wanted; what it takes for the book goes to the book */
   loomBlocksHook: "0x8A82E05AA319E506631810D1dC1f20BE248C20cc" as Address,
-  /** where the blocks hook's share goes: everything that lands there ends as LOOM burned */
+  /** LoomBurner: everything that lands there ends as LOOM burned (the hook's payee on its first night; the book's sink since) */
   loomBurner: "0x98Ec6E06482765795c21B3eF39Faa3bE1674a87B" as Address,
   /** the open hook before it (pools opened there stay there): any range, a launch fee and a volatility fee if wanted */
   loomOpenHookV2: "0x809397880B3A31C4E88cf6Aba367a45509e320CC" as Address,
