@@ -38,7 +38,10 @@ export const ADDRESSES = {
   loomOpenHookV2: "0x809397880B3A31C4E88cf6Aba367a45509e320CC" as Address,
   /** full-range pools anyone can open, every fee in the quote, arbitrage pays the gap */
   loomFullHook: "0x3AD87F5b9cf8F17eD39d787Eef3d9D19053D28Cc" as Address,
-  /** the book's LOOM/WETH pool */
+  /** the book's LOOM/WETH pool since 9 October 2026: 4% each way at rest, more for a swap that closes a gap to the
+   *  market, every fee in WETH, full-range liquidity only. A wallet never sends to it. */
+  loomPairsHookV3: "0x5C3DF4D664e606E87Ea4fFD4413C7791283D28cC" as Address,
+  /** the book's pool before it (10% at rest), empty since the move */
   loomPairsHookV2: "0xE92bde61aBdb4C7bbCfC94554033a74998c928Cc" as Address,
   /** the swap router a plan's swaps go through (Nordstern's Guard router) */
   swapRouter: "0x603206D6105217DD972E4Ab30676A220CA393346" as Address,
