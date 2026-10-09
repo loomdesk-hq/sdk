@@ -79,6 +79,27 @@ await sendPlan(plan, { walletClient, publicClient });
 
 The pool opens at the token's existing market price, read from its deepest pool. A launchpad can make this its listing step: one call per token, the creator's wallet as `owner`.
 
+### A token that has never traded: the curve
+
+A token you just deployed has no price to read. `planCurve` opens its pool at the market cap you name and lays the market as two positions and nothing else: the whole supply in one position from the opening price to the top of the range (x·y=k above the price, the shape of a launchpad curve: every buy lifts the price and the position never runs dry) and your ETH in one band under the price, so a sell has money to meet it from the first block. A flat fee, no opening fee. Three transactions: the pool, the approval, the two positions as one ladder. Lock that ladder with `planAction({ action: "lock" })` and the market can never be pulled.
+
+```js
+import { planCurve, sendPlan } from "loomdesk-sdk";
+
+const plan = await planCurve(loom, {
+  token: "0xYourNewToken",
+  owner: account.address,
+  startMarketCapUsd: 5000,     // the price the curve starts from
+  amountToken: "1000000000",   // the supply, or the share you put on the market
+  amountEth: "0.03",           // under the price, 30% deep by default (underPct)
+  feePct: 2,                   // 1 to 5, flat
+  hook: { volatility: true, blocks: { antiSnipeMaxQuote: 0.015, antiSnipeMinutes: 10 } },
+});
+await sendPlan(plan, { walletClient, publicClient, allow: [...TRUSTED, "0xYourNewToken"] });
+```
+
+The ETH under the price is the only real money in the market; the market cap is the curve's starting price times the supply, as on any launchpad. Nothing is ever refused by the hook, and only you, as the pool's creator, can move its fee, within bounds you set at opening (see Blocks).
+
 ## Choose the hook
 
 A pool's fee rule is set when it opens and fixed after, so choose it in the plan. `hook` takes a preset or the fields themselves; a field given beside a preset wins. Without `hook`, the plan opens the plain pool at `feePct` and lists the presets under `options`.
