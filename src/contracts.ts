@@ -24,8 +24,11 @@ export const ADDRESSES = {
   /** the autopilot's gas tank */
   pilotGas: "0x86B5776F64fF26943724C0E5117c0b1b58d15f90" as Address,
   /** the open hook new pools go on since 9 October 2026: any range, 0.1% to 5%, a launch fee, a volatility fee and the
-   *  creator's blocks if wanted; what it takes for the book goes to the book */
-  loomBlocksHook: "0x8A82E05AA319E506631810D1dC1f20BE248C20cc" as Address,
+   *  creator's blocks if wanted; what it takes for the book goes to the book. No block ever refuses a trade and only a
+   *  pool's creator moves its fee (this revision replaced 0x8A82…20cc the same day; that one's pools stay listed) */
+  loomBlocksHook: "0x5b907B52eAcBCeE78F2C56A6e74F5cf04A96e0cC" as Address,
+  /** the first blocks hook (8 to 9 October 2026), with the sell lock and an owner fee lever: its pools stay, no new ones open on it */
+  loomBlocksHookV1: "0x8A82E05AA319E506631810D1dC1f20BE248C20cc" as Address,
   /** LoomLock: liquidity locked for good. A ladder given to it can never be taken out; its fees go to the beneficiary
    *  its owner named (planAction lock / collect_locked) */
   loomLock: "0x60e7bCF343CeB3b5c912155140cF4230B4ffbF55" as Address,
@@ -64,7 +67,7 @@ export const LEGACY_LADDERS: Address[] = [
 
 /** Where a plan's transactions may go, by default: LoomDesk's contracts, the swap router, USDG and WETH (approvals). */
 export const TRUSTED: Address[] = [
-  ADDRESSES.loomLadder, ADDRESSES.loomZap, ADDRESSES.pilotGas, ADDRESSES.loomLock, ADDRESSES.loomBlocksHook, ADDRESSES.loomOpenHookV2, ADDRESSES.loomFullHook,
+  ADDRESSES.loomLadder, ADDRESSES.loomZap, ADDRESSES.pilotGas, ADDRESSES.loomLock, ADDRESSES.loomBlocksHook, ADDRESSES.loomBlocksHookV1, ADDRESSES.loomOpenHookV2, ADDRESSES.loomFullHook,
   ADDRESSES.swapRouter, ADDRESSES.usdg, ADDRESSES.weth, ...LEGACY_LADDERS,
 ];
 
