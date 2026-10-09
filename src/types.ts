@@ -49,6 +49,8 @@ export type NewPool = { key: { currency0: Address; currency1: Address; fee: numb
 
 /** A ladder from assets the wallet already holds (one or both sides). */
 export type LadderAsk = {
+  /** a token that has never traded, built in the pool being opened (newPool): the market cap it opens at, as given to planOpenPool */
+  startMarketCapUsd?: number;
   token: Address;
   /** a pool from `pools()`; the default pool when left out */
   pool?: string;
@@ -170,7 +172,9 @@ export const HOOK_PRESETS: Record<HookPreset, Required<Pick<HookOptions, "kind" 
 export type HookChosen = { kind: "ranges" | "full"; address: Address; preset?: HookPreset; feePct: number; launchFeePct: number; launchMinutes: number; volatility: boolean; /** the fee rule in words */ fee: string; blocks?: HookBlocks; /** each block in words */ blockRules?: string[] };
 
 /** A new pool on one of LoomDesk's hooks for a token against ETH, USDG or another quote. About a dollar once. */
-export type OpenPoolAsk = { token: Address; quote: "ETH" | "USDG" | Address; /** the swap fee, percent; left out: the preset's, else 1 */ feePct?: number; owner: Address; /** which hook and with what; left out: the plain ranges pool */ hook?: HookOptions };
+export type OpenPoolAsk = { token: Address; quote: "ETH" | "USDG" | Address; /** the swap fee, percent; left out: the preset's, else 1 */ feePct?: number; owner: Address; /** which hook and with what; left out: the plain ranges pool */ hook?: HookOptions;
+  /** a token that has never traded (not in the index): the market cap the pool opens at, in dollars (the price is it over the supply); or a price */
+  startMarketCapUsd?: number; startPriceUsd?: number };
 
 /** One transaction from ETH or USDG to a ladder, the pool opened on LoomDesk's hook on the way when the pair has none. */
 export type BuildAsk = {

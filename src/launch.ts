@@ -1,6 +1,6 @@
 // Recipes on top of the planner: a token's first market on LoomDesk's hook with liquidity in it, in one transaction;
 // a delegate's permissions read back; the shape of a band as the site would show it.
-import type { Address, BuildAsk, HookChosen, HookOptions, Plan, Shape } from "./types.js";
+import type { Address, BuildAsk, HookChosen, HookOptions, LadderAsk, Plan, Shape } from "./types.js";
 import type { LoomDesk } from "./client.js";
 import { DELEGATE } from "./contracts.js";
 
@@ -31,6 +31,13 @@ export type LaunchAsk = {
   fullRange?: boolean;
   slippagePct?: number;
   referrer?: Address;
+  /** A token that has never traded (a token you just deployed): the market cap it opens at, in dollars. The plan then
+   *  opens the pool at that price and builds the ladder from what the wallet holds: `amountToken` of the token (its
+   *  supply, or a share of it) on the sell side over the price, and `amount` of ETH or USDG under it. Nothing is
+   *  bought on the way in, since there is no market yet. */
+  startMarketCapUsd?: number;
+  /** with startMarketCapUsd: how much of the token the wallet lays over the price, a decimal string in whole tokens */
+  amountToken?: string;
 };
 
 /** What a launch plan came back with, beside the plan itself. */
@@ -51,6 +58,7 @@ export type LaunchPlan = Plan & {
  * swaps are priced at that block. Costs what every ladder costs: 0.25% of what goes in, then 5% of the fees it earns.
  */
 export async function planLaunch(client: LoomDesk, ask: LaunchAsk): Promise<LaunchPlan> {
+  if (ask.startMarketCapUsd) return planFirstMarket(client, ask);
   const body: BuildAsk = {
     token: ask.token, quote: ask.quote, payIn: ask.payIn, amount: ask.amount, owner: ask.owner, feePct: ask.feePct, hook: ask.hook,
     // a full-range hook takes one full-range position and nothing narrower
@@ -62,6 +70,31 @@ export async function planLaunch(client: LoomDesk, ask: LaunchAsk): Promise<Laun
   const pool = typeof plan.pool === "string" ? plan.pool : "";
   const opens = /opened/i.test(pool) || Boolean(plan.hook);
   return { ...plan, opensPool: opens, ...(plan.hook ? { hook: plan.hook } : {}), ...(plan.hookNotes ? { hookNotes: plan.hookNotes } : {}) };
+}
+
+/** A token's first market, when it has never traded: the pool opened at the market cap named (the hook and its
+ *  blocks as asked), then the ladder laid in it from what the wallet holds. Two plans joined: the opening's
+ *  transactions first, the ladder's after; the ladder cannot be simulated until the pool exists, so the check is
+ *  the opening's and the ladder's note says so. Send them in order. */
+async function planFirstMarket(client: LoomDesk, ask: LaunchAsk): Promise<LaunchPlan> {
+  if (!ask.amountToken) throw new Error("planLaunch with startMarketCapUsd needs amountToken: the tokens the wallet lays over the price");
+  const open = await client.planOpenPool({ token: ask.token, quote: ask.quote, feePct: ask.feePct, owner: ask.owner, hook: ask.hook, startMarketCapUsd: ask.startMarketCapUsd }) as Plan & { then?: { pool: string; newPool: { key: { currency0: Address; currency1: Address; fee: number; tickSpacing: number; hooks: Address }; sqrtPriceX96: string } }; hook?: HookChosen; alreadyOpen?: boolean; pool?: string };
+  if (open.alreadyOpen || !open.then) throw new Error("that pair already has a pool on the hook: use planLaunch without startMarketCapUsd");
+  const ladder = await client.planLadder({
+    token: ask.token, pool: open.then.pool, newPool: open.then.newPool, owner: ask.owner,
+    lowPct: ask.lowPct ?? -30, highPct: ask.highPct ?? 300, rungs: ask.rungs ?? 20, shape: ask.shape ?? "bidask", weights: ask.weights,
+    amountToken: ask.amountToken, amountQuote: ask.amount, payWithEth: ask.payIn === "ETH", slippagePct: ask.slippagePct, referrer: ask.referrer,
+    startMarketCapUsd: ask.startMarketCapUsd,
+  } as LadderAsk);
+  return {
+    ...ladder,
+    transactions: [...open.transactions, ...ladder.transactions],
+    check: open.check,
+    pool: open.pool,
+    opensPool: true,
+    ...(open.hook ? { hook: open.hook } : {}),
+    hookNotes: ["the pool is opened first at the market cap named; the ladder goes in it next and could not be simulated before the pool exists: send the transactions in order"],
+  } as LaunchPlan;
 }
 
 /** A delegate word from `delegateOf(ladderId)`, read back: who, and what they may do. Zero: no delegate. */
