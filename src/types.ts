@@ -153,8 +153,6 @@ export type HookBlocks = {
   royaltyPct?: number;
   /** auto burn: this percent of the base fee is burned in the token on every sell; at most 20 */
   burnPct?: number;
-  /** sell lock: no sells for the first so many minutes (1 to 1440); liquidity can always be removed */
-  sellLockMinutes?: number;
   /** managed fee: the creator may later move the base fee between these tiers (1 to 5 share a spacing; 0.1 and 0.5 stand alone), an hour apart */
   managedFee?: { floorPct: number; ceilPct: number };
   /** market hours: outside NYSE hours (weekdays, 13:30 to 20:00 UTC as set) the base fee is this tier instead */

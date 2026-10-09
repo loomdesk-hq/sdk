@@ -74,7 +74,7 @@ export function checkBlocks(b: HookOptions["blocks"], feePct: number): void {
   if (b.antiSnipeMaxQuote !== undefined || b.antiSnipeMinutes !== undefined) { if (!(Number(b.antiSnipeMaxQuote) > 0)) throw new HookChoiceError("blocks.antiSnipeMaxQuote is the most one buy may spend of the quote, above zero."); minutes(b.antiSnipeMinutes, "blocks.antiSnipeMinutes"); }
   if (b.royaltyPct !== undefined && (!(b.royaltyPct > 0) || b.royaltyPct > BLOCK_LIMITS.royaltyPctMax)) throw new HookChoiceError(`blocks.royaltyPct is above zero and at most ${BLOCK_LIMITS.royaltyPctMax}.`);
   if (b.burnPct !== undefined && (!(b.burnPct > 0) || b.burnPct > BLOCK_LIMITS.burnPctMax)) throw new HookChoiceError(`blocks.burnPct is above zero and at most ${BLOCK_LIMITS.burnPctMax}.`);
-  if (b.sellLockMinutes !== undefined) minutes(b.sellLockMinutes, "blocks.sellLockMinutes");
+  if ((b as { sellLockMinutes?: number }).sellLockMinutes !== undefined) throw new HookChoiceError("The hook has no sell lock: a pool on it can always be sold into. Leave blocks.sellLockMinutes out.");
   if (b.managedFee) { const { floorPct, ceilPct } = b.managedFee; if (!spacing(floorPct) || !spacing(ceilPct) || spacing(floorPct) !== spacing(feePct) || spacing(ceilPct) !== spacing(feePct) || floorPct > feePct || ceilPct < feePct) throw new HookChoiceError(`blocks.managedFee needs floorPct <= ${feePct} <= ceilPct, tiers of the fee's own spacing.`); }
   if (b.offHoursFeePct !== undefined && (!spacing(b.offHoursFeePct) || spacing(b.offHoursFeePct) !== spacing(feePct))) throw new HookChoiceError("blocks.offHoursFeePct is a tier of the fee's own spacing.");
 }

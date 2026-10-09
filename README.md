@@ -129,18 +129,19 @@ On LoomBlocksHook a ranges pool can carry blocks: switches the creator sets at o
 | Anti-snipe | `antiSnipeMaxQuote`, `antiSnipeMinutes` | for the first minutes no single buy may spend more than so much ETH or USDG |
 | Royalty | `royaltyPct` | this share of the base fee (up to 30%) goes to the creator, in the quote, every swap |
 | Auto burn | `burnPct` | this share of the base fee (up to 20%) is burned in the token on every sell |
-| Sell lock | `sellLockMinutes` | no sells for the first minutes (up to a day); liquidity can always be removed |
 | Managed fee | `managedFee: { floorPct, ceilPct }` | the creator may later move the base fee between these tiers, an hour apart (`setFee` on the hook) |
 | Market hours | `offHoursFeePct` | outside NYSE hours the base fee is this tier instead |
 
 ```js
 const plan = await planLaunch(loom, {
   token, quote: "ETH", feePct: 3, payIn: "ETH", amount: "0.5", owner,
-  hook: { launchFeePct: 30, launchMinutes: 30, volatility: true,
-          blocks: { antiSnipeMaxQuote: 0.05, antiSnipeMinutes: 10, royaltyPct: 20, burnPct: 10, sellLockMinutes: 5 } },
+  hook: { launchFeePct: 8, launchMinutes: 10, volatility: true,
+          blocks: { antiSnipeMaxQuote: 0.05, antiSnipeMinutes: 10, royaltyPct: 20, burnPct: 10 } },
 });
 console.log(plan.hook.blockRules);   // each block in words, as the contract will enforce it
 ```
+
+No block ever refuses a trade: a pool on the hook can always be bought and sold, and only its creator can move its fee, inside the bounds set at opening. The hook's owner has no lever on a live pool's fee.
 
 `checkHook` checks the blocks too, and `feeAt(...).parts` shows the royalty and the burn as parts of the base fee. What the hook takes for the book on these pools goes into the book's LOOM pairs as depth.
 

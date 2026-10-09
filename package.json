@@ -1,6 +1,6 @@
 {
   "name": "loomdesk-sdk",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "LoomDesk for your code: plan and build liquidity positions on Robinhood Chain, open pools on LoomDesk's hooks, send or delegate positions. Plans come back as unsigned transactions; you sign.",
   "license": "MIT",
   "type": "module",
