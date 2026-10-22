@@ -7,6 +7,6 @@ export { HOOK_PRESETS } from "./types.js";
 export { checkBlocks, BLOCK_LIMITS, checkHook, feeAt, launchCurve, hookPoolKey, hookPoolId, poolIdOf, hookPool, feeNow, hookSettings, launchAdds, volAdds, captureOf, rangedFee, fullFee, ticksOf, pipsPct, HookChoiceError, HOOK_LIMITS, SPACING_OF, FEE_CAP, BAND_FLOOR, VOL_DEFAULT, GAP_DEFAULT } from "./hooks.js";
 export type { HookRule, VolSettings, GapSettings } from "./hooks.js";
 export type { LaunchAsk, LaunchPlan, CurveAsk } from "./launch.js";
-export { robinhoodChain, CHAIN_ID, ADDRESSES, LEGACY_LADDERS, TRUSTED, DELEGATE } from "./contracts.js";
+export { robinhoodChain, CHAIN_ID, ADDRESSES, LEGACY_LADDERS, LEGACY_ZAPS, TRUSTED, DELEGATE } from "./contracts.js";
 export { erc20Abi, loomLadderAbi, loomZapAbi, loomOpenHookV2Abi, loomBlocksHookAbi, loomFullHookAbi, pilotGasAbi } from "./abis.js";
 export type * from "./types.js";
