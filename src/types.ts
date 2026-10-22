@@ -199,6 +199,9 @@ export type BuildAsk = {
   shape?: Shape;
   weights?: number[];
   fullRange?: boolean;
+  /** quote: the buy side only. Every rung sits under the price and holds the quote, nothing is swapped into the token,
+   *  and the band's top is the price (highPct is capped at 0). Default both: the token side is bought on the way in. */
+  side?: "both" | "quote";
   slippagePct?: number;
   referrer?: Address;
   copyOf?: string;
