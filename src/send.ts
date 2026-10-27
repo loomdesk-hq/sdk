@@ -37,7 +37,11 @@ function zapLegsCarryCalldata(to: string, data: string): boolean {
     const d = decodeFunctionData({ abi: loomZapAbi, data: data as `0x${string}` });
     const legs = d.functionName === "zapBuild" ? d.args[2] : d.functionName === "zapAddVia" ? d.args[3] : d.functionName === "zapCloseVia" ? d.args[3] : undefined;
     return Array.isArray(legs) && legs.some((l) => typeof (l as { data?: string }).data === "string" && (l as { data: string }).data !== "0x");
-  } catch { return false; }
+  } catch {
+    // a call to the zap that cannot be read is refused: calldata the contract accepts can be made to defeat the
+    // decoder (thousands of aliased sales), and a check that passes what it cannot read checks nothing
+    return true;
+  }
 }
 
 /** A plan never moves a token itself: a transfer or transferFrom, to anyone, is never one of its steps. */
@@ -62,7 +66,7 @@ export function assertSendable(plan: Plan, allow: Address[] = TRUSTED, opts: { s
   const ok = new Set(allow.map((a) => a.toLowerCase()));
   ok.delete(MULTICALL3.toLowerCase());
   for (const t of plan.transactions) {
-    if (zapLegsCarryCalldata(t.to, t.data)) throw new Error(`step "${t.step}" has a zap swap that runs router calldata in place of a pool, which LoomDesk's plans never do.`);
+    if (zapLegsCarryCalldata(t.to, t.data)) throw new Error(`step "${t.step}" is a zap call that runs router calldata in place of a pool, or one that cannot be read: LoomDesk's plans never send either.`);
     if (!opts.transfers && TRANSFERS.has(t.data.slice(0, 10).toLowerCase())) throw new Error(`step "${t.step}" moves a token straight out of the wallet, which a plan never does.`);
     const spender = spenderOf(t.data);
     if (spender !== undefined) {
