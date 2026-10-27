@@ -20,13 +20,20 @@ export type SendOptions = {
   timeout?: number;
 };
 
-const approveAbi = parseAbi(["function approve(address spender, uint256 amount)", "function approve(address token, address spender, uint160 amount, uint48 expiration)"]);
+const approveAbi = parseAbi([
+  "function approve(address spender, uint256 amount)", "function approve(address token, address spender, uint160 amount, uint48 expiration)",
+  // the same by other names: WETH takes increaseAllowance, USDG increaseApproval
+  "function increaseAllowance(address spender, uint256 added)", "function increaseApproval(address spender, uint256 added)",
+]);
+/** A plan never moves a token itself: a transfer or transferFrom, to anyone, is never one of its steps. */
+const TRANSFERS = new Set(["0xa9059cbb", "0x23b872dd"]);
 
-/** The spender an approval names (an ERC-20 approve, or Permit2's), or undefined for any other call. */
+/** The spender an approval names (an ERC-20 approve or allowance increase, or Permit2's approve), or undefined for any
+ *  other call. */
 function spenderOf(data: string): string | undefined {
   try {
     const d = decodeFunctionData({ abi: approveAbi, data: data as `0x${string}` });
-    return String(d.args.length === 2 ? d.args[0] : d.args[1]);
+    return String(d.functionName === "approve" && d.args.length === 4 ? d.args[1] : d.args[0]);
   } catch { return undefined; }
 }
 
@@ -40,6 +47,7 @@ export function assertSendable(plan: Plan, allow: Address[] = TRUSTED, opts: { s
   const ok = new Set(allow.map((a) => a.toLowerCase()));
   ok.delete(MULTICALL3.toLowerCase());
   for (const t of plan.transactions) {
+    if (TRANSFERS.has(t.data.slice(0, 10).toLowerCase())) throw new Error(`step "${t.step}" moves a token straight out of the wallet, which a plan never does.`);
     const spender = spenderOf(t.data);
     if (spender !== undefined) {
       if (!ok.has(spender.toLowerCase())) throw new Error(`step "${t.step}" approves ${spender}, which is not in the allowed contracts. Check it against https://loomdesk.trade/llms.txt before sending.`);

@@ -51,7 +51,7 @@ const hashes = await sendPlan(plan, { walletClient, publicClient });
 | `planLimit(ask)` | a limit buy or sell: rungs at a price, closed for you once filled |
 | `planAction(ask)` | collect, close, close part, take the NFTs, set the fill rule, give the ladder away, delegate it, lock it for good |
 | `planOpenPool(ask)` | a new pool on one of the hooks, on its own, with the creator's `hook` choices |
-| `planSwap(ask)` | a swap through Nordstern's aggregator |
+| `planSwap(ask)` | a swap through LoomDesk's own route (Uniswap's Universal Router, approvals through Permit2) |
 | `token(address)` | a token as LoomDesk measures it |
 | `ladders(address)` | a wallet's ladders on every LoomLadder, with rungs, fees waiting, value and history |
 

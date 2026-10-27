@@ -90,7 +90,7 @@ export class LoomDesk {
   planOpenPool(ask: OpenPoolAsk): Promise<Plan> { return this.plan({ plan: "open_pool", ...ask }) as Promise<Plan>; }
   /** One transaction from ETH or USDG to a ladder, the pool opened on LoomDesk's hook on the way when the pair has none. */
   planBuild(ask: BuildAsk): Promise<Plan> { return this.plan({ plan: "build", ...ask }) as Promise<Plan>; }
-  /** A swap through Nordstern's aggregator. */
+  /** A swap through LoomDesk's own route over the chain's Uniswap pools: one Universal Router transaction, approvals through Permit2. */
   planSwap(ask: SwapAsk): Promise<Plan> { return this.plan({ plan: "swap", ...ask }) as Promise<Plan>; }
 
   /** A token as the site measures it: price, pools, depth, flags. */

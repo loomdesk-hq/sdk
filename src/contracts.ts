@@ -32,7 +32,8 @@ export const ADDRESSES = {
   /** the first blocks hook (8 to 9 October 2026), with the sell lock and an owner fee lever: its pools stay, no new ones open on it */
   loomBlocksHookV1: "0x8A82E05AA319E506631810D1dC1f20BE248C20cc" as Address,
   /** LoomLock: liquidity locked for good. A ladder given to it can never be taken out; its fees go to the beneficiary
-   *  its owner named (planAction lock / collect_locked) */
+   *  its owner named (planAction lock / collect_locked). It serves the ladders of the LoomLadder it names (ladder():
+   *  0x75F8…5f6C, the one before the current); a ladder on the current contract cannot be locked yet */
   loomLock: "0x60e7bCF343CeB3b5c912155140cF4230B4ffbF55" as Address,
   /** LoomBurner: everything that lands there ends as LOOM burned (the hook's payee on its first night; the book's sink since) */
   loomBurner: "0x98Ec6E06482765795c21B3eF39Faa3bE1674a87B" as Address,
@@ -79,7 +80,16 @@ export const LEGACY_LADDERS: Address[] = [
 
 /** The zap of an earlier LoomLadder (a close `into` one asset of a ladder there goes through it). Another one is
  *  found on the chain: LoomLadder.zap() on that contract, whose ladder() names the contract back. */
-export const LEGACY_ZAPS: Address[] = ["0x345d539094485888038Ca444E03b8eE52e68afAC"];
+export const LEGACY_ZAPS: Address[] = [
+  "0x345d539094485888038Ca444E03b8eE52e68afAC",
+  "0xB120623713677497c738790862726f1F3d4B0974",
+  "0x269aA9596B1185a038025F08C0f6a9B6637CC01D",
+  "0xb4B9b36E7698DCA6BE6dc87c7Bae36cC0E88bDE5",
+  "0x6ea6c3E85f4D9BfC658Dd752ca117d64b42e8Af0",
+  "0x77bb4C9ae9689dF9E99DbCE6F5DfA0Ae0e396718",
+  "0x7FB4f06cb282D47cB618448e19B42b9B105e2b15",
+  "0x2911F1A4418295B14C0F908C758465a6EdA56d5d",
+];
 
 /** Where a plan's transactions may go, by default: LoomDesk's contracts, the swap router and Permit2, USDG and WETH.
  *  An approval may go to any token, as long as what it approves is one of these (assertSendable reads it). */
