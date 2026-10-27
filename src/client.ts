@@ -1,6 +1,6 @@
 // The client: LoomDesk's planner over HTTP. Every plan comes back as unsigned transactions for the owner's wallet;
 // nothing here signs or spends. The same plans the MCP server offers, for code that would rather not speak MCP.
-import type { ActionAsk, Address, BuildAsk, KeyGrant, LadderAsk, LimitAsk, OpenPoolAsk, Plan, PoolsAnswer, SwapAsk, Usage } from "./types.js";
+import type { ActionAsk, AddAsk, Address, BuildAsk, KeyGrant, LadderAsk, LimitAsk, OpenPoolAsk, Plan, PoolsAnswer, SwapAsk, Usage } from "./types.js";
 
 export type LoomDeskOptions = {
   /** a key from `getKey()`: a quota of your own (120 units a minute, 10,000 a day) instead of your address's */
@@ -90,6 +90,8 @@ export class LoomDesk {
   planOpenPool(ask: OpenPoolAsk): Promise<Plan> { return this.plan({ plan: "open_pool", ...ask }) as Promise<Plan>; }
   /** One transaction from ETH or USDG to a ladder, the pool opened on LoomDesk's hook on the way when the pair has none. */
   planBuild(ask: BuildAsk): Promise<Plan> { return this.plan({ plan: "build", ...ask }) as Promise<Plan>; }
+  /** More in one of your ladders from its money side alone: the token side bought on the way, in one transaction. */
+  planAdd(ask: AddAsk): Promise<Plan> { return this.plan({ plan: "add", ...ask }) as Promise<Plan>; }
   /** A swap through LoomDesk's own route over the chain's Uniswap pools: one Universal Router transaction, approvals through Permit2. */
   planSwap(ask: SwapAsk): Promise<Plan> { return this.plan({ plan: "swap", ...ask }) as Promise<Plan>; }
 

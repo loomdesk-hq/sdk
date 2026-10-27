@@ -47,6 +47,7 @@ const hashes = await sendPlan(plan, { walletClient, publicClient });
 |---|---|
 | `pools(token)` | the pools a ladder can go in, in the site's order, with fee, step, depth, volume, and whether the pool pays its liquidity |
 | `planBuild(ask)` | one transaction from ETH or USDG to a ladder; opens a pool on LoomDesk's hook on the way when the pair has none |
+| `planAdd(ask)` | more in one of your ladders from its money side alone (ETH, WETH or USDG): the zap buys the token side in the chain's own pools and every rung grows, in one transaction |
 | `planLadder(ask)` | a ladder from assets the wallet already holds, one side or both |
 | `planLimit(ask)` | a limit buy or sell: rungs at a price, closed for you once filled |
 | `planAction(ask)` | collect, close, close part, take the NFTs, set the fill rule, give the ladder away, delegate it, lock it for good |

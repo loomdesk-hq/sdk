@@ -179,6 +179,18 @@ export type OpenPoolAsk = { token: Address; quote: "ETH" | "USDG" | Address; /**
   startMarketCapUsd?: number; startPriceUsd?: number };
 
 /** One transaction from ETH or USDG to a ladder, the pool opened on LoomDesk's hook on the way when the pair has none. */
+/** Money into one of your ladders from its money side alone (ETH, WETH or USDG): the zap buys the token side in the
+ *  chain's own pools (LoomDesk's own routing) and every rung grows by the same share, in one transaction. */
+export type AddAsk = {
+  owner: Address;
+  ladderId: string;
+  /** how much of the ladder's money side goes in, a decimal string */
+  amount: string;
+  /** a WETH ladder paid in plain ETH, wrapped by the zap: by default whenever the wallet holds less WETH than amount */
+  payWithEth?: boolean;
+  slippagePct?: number;
+};
+
 export type BuildAsk = {
   token: Address;
   quote: "ETH" | "USDG" | Address;

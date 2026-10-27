@@ -12,6 +12,8 @@ export type SendOptions = {
   allow?: Address[];
   /** send even when the planner's simulation failed (destinations and approvals are still checked) */
   sendFailed?: boolean;
+  /** let a plain token transfer through: a plan from LoomDesk never has one, a wallet's own withdrawal does */
+  transfers?: boolean;
   /** skip every check: the simulation, the destinations and the approvals. Prefer `allow` or `sendFailed` */
   force?: boolean;
   /** called before each step */
@@ -39,7 +41,7 @@ function spenderOf(data: string): string | undefined {
 
 /** Throws when a plan should not be sent as it is: a failed simulation (unless `sendFailed`), a destination outside
  *  `allow`, or an approval whose spender is outside it. An approval may go to any token: what it approves is read. */
-export function assertSendable(plan: Plan, allow: Address[] = TRUSTED, opts: { sendFailed?: boolean } = {}): void {
+export function assertSendable(plan: Plan, allow: Address[] = TRUSTED, opts: { sendFailed?: boolean; transfers?: boolean } = {}): void {
   if (!plan.transactions?.length) throw new Error("the plan has no transactions");
   if (!opts.sendFailed && plan.check?.simulated && plan.check.ok === false) {
     throw new Error(`the planner saw this plan fail at step ${plan.check.failedStep ?? "?"}: ${plan.check.reason ?? "unknown"}. Plan again right before sending.`);
@@ -47,7 +49,7 @@ export function assertSendable(plan: Plan, allow: Address[] = TRUSTED, opts: { s
   const ok = new Set(allow.map((a) => a.toLowerCase()));
   ok.delete(MULTICALL3.toLowerCase());
   for (const t of plan.transactions) {
-    if (TRANSFERS.has(t.data.slice(0, 10).toLowerCase())) throw new Error(`step "${t.step}" moves a token straight out of the wallet, which a plan never does.`);
+    if (!opts.transfers && TRANSFERS.has(t.data.slice(0, 10).toLowerCase())) throw new Error(`step "${t.step}" moves a token straight out of the wallet, which a plan never does.`);
     const spender = spenderOf(t.data);
     if (spender !== undefined) {
       if (!ok.has(spender.toLowerCase())) throw new Error(`step "${t.step}" approves ${spender}, which is not in the allowed contracts. Check it against https://loomdesk.trade/llms.txt before sending.`);
@@ -62,7 +64,7 @@ export function assertSendable(plan: Plan, allow: Address[] = TRUSTED, opts: { s
 /** Send a plan. Returns the transaction hashes in order. Stops at the first one that reverts. */
 export async function sendPlan(plan: Plan, opts: SendOptions): Promise<Hash[]> {
   const { walletClient, publicClient } = opts;
-  if (!opts.force) assertSendable(plan, opts.allow, { sendFailed: opts.sendFailed });
+  if (!opts.force) assertSendable(plan, opts.allow, { sendFailed: opts.sendFailed, transfers: opts.transfers });
   const account = walletClient.account;
   if (!account) throw new Error("the wallet client has no account");
   const hashes: Hash[] = [];
