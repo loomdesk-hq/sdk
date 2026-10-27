@@ -1,4 +1,4 @@
-// Robinhood Chain and LoomDesk's contracts on it, as of 6 October 2026. A plan from LoomDesk only ever goes to these
+// Robinhood Chain and LoomDesk's contracts on it, as of 27 October 2026. A plan from LoomDesk only ever goes to these
 // (and to a token for an approval). LoomLadder moves with each migration and the earlier ones stay live for the
 // ladders in them: the current list is always at https://loomdesk.trade/llms.txt, and `ladders()` names the contract
 // each of your ladders lives in.
@@ -17,10 +17,12 @@ export const robinhoodChain = defineChain({
 });
 
 export const ADDRESSES = {
-  /** the current LoomLadder (ladders in any pool with a money side); give and setDelegate live here */
-  loomLadder: "0x75F858eEF29b47bE1a1254568f938aedB0F15f6C" as Address,
-  /** one asset in, a whole ladder out; opens a pool on the hook on the way */
-  loomZap: "0x345d539094485888038Ca444E03b8eE52e68afAC" as Address,
+  /** the current LoomLadder (ladders in any pool with a money side, since 20 October 2026); give and setDelegate live here */
+  loomLadder: "0x72e5dC8bb512B93E49991d541C23208B9145F273" as Address,
+  /** one asset in, a whole ladder out; opens a pool on the hook on the way. The current LoomLadder's own zap */
+  loomZap: "0x465AC088C61B6bB50E3690F7BC5cAD9f491000a6" as Address,
+  /** puts an empty v4 pool's price back at the market before a ladder is laid in it; trades nothing */
+  priceSetter: "0xE1394FBDFaA0186EDA5a999f4076002179100d2B" as Address,
   /** the autopilot's gas tank */
   pilotGas: "0x86B5776F64fF26943724C0E5117c0b1b58d15f90" as Address,
   /** the open hook new pools go on since 9 October 2026: any range, 0.1% to 5%, a launch fee, a volatility fee and the
@@ -43,8 +45,10 @@ export const ADDRESSES = {
   loomPairsHookV3: "0x5C3DF4D664e606E87Ea4fFD4413C7791283D28cC" as Address,
   /** the book's pool before it (10% at rest), empty since the move */
   loomPairsHookV2: "0xE92bde61aBdb4C7bbCfC94554033a74998c928Cc" as Address,
-  /** the swap router a plan's swaps go through (Nordstern's Guard router) */
-  swapRouter: "0x603206D6105217DD972E4Ab30676A220CA393346" as Address,
+  /** the swap router a plan's swaps go through: Uniswap's Universal Router, on LoomDesk's own route (planSwap) */
+  swapRouter: "0x204FAca1764B154221e35c0d20aBb3c525710498" as Address,
+  /** Permit2: a swap's approval goes to it, for the exact amount, and it lets the router take that much for 30 minutes */
+  permit2: "0x000000000022D473030F116dDEE9F6B43aC78BA3" as Address,
   usdg: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168" as Address,
   weth: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73" as Address,
   uniswapV4PoolManager: "0x8366a39CC670B4001A1121B8F6A443A643e40951" as Address,
@@ -54,6 +58,8 @@ export const ADDRESSES = {
 
 /** Earlier LoomLadders, still live for the ladders opened in them. */
 export const LEGACY_LADDERS: Address[] = [
+  "0xA68CAD7C0675007C31F8dFf7A594aA9EA973F35f",
+  "0x75F858eEF29b47bE1a1254568f938aedB0F15f6C",
   "0xED7dcF8dFed7e25322809f4958052EabC5219CE4",
   "0xf6aA78Bf1524946412c127A7D7817D7803F25c9D",
   "0x8643E482303380DD4bb188A868d42b11DaA56412",
@@ -66,13 +72,24 @@ export const LEGACY_LADDERS: Address[] = [
   "0x751CA878767a71DE33F2beaB10276d76e33a2be1",
   "0xA80Ce686210b06bB9381f0f4C36981202f3d776d",
   "0x81b5aC3B68609810B99a213b9d7fea79917e7E59",
+  "0x26727ce2767c7da910f8BE1841B1B1Aa58eBA930",
+  "0x9f7e85061424A601ce994FD2770c7B252482BA8a",
+  "0x7c4582738756444564369669a1d4DF157661cF42",
 ];
 
-/** Where a plan's transactions may go, by default: LoomDesk's contracts, the swap router, USDG and WETH (approvals). */
+/** The zap of an earlier LoomLadder (a close `into` one asset of a ladder there goes through it). Another one is
+ *  found on the chain: LoomLadder.zap() on that contract, whose ladder() names the contract back. */
+export const LEGACY_ZAPS: Address[] = ["0x345d539094485888038Ca444E03b8eE52e68afAC"];
+
+/** Where a plan's transactions may go, by default: LoomDesk's contracts, the swap router and Permit2, USDG and WETH.
+ *  An approval may go to any token, as long as what it approves is one of these (assertSendable reads it). */
 export const TRUSTED: Address[] = [
-  ADDRESSES.loomLadder, ADDRESSES.loomZap, ADDRESSES.pilotGas, ADDRESSES.loomLock, ADDRESSES.loomBlocksHook, ADDRESSES.loomBlocksHookV1, ADDRESSES.loomOpenHookV2, ADDRESSES.loomFullHook,
-  ADDRESSES.swapRouter, ADDRESSES.usdg, ADDRESSES.weth, ...LEGACY_LADDERS,
+  ADDRESSES.loomLadder, ADDRESSES.loomZap, ADDRESSES.priceSetter, ADDRESSES.pilotGas, ADDRESSES.loomLock, ADDRESSES.loomBlocksHook, ADDRESSES.loomBlocksHookV1, ADDRESSES.loomOpenHookV2, ADDRESSES.loomFullHook,
+  ADDRESSES.swapRouter, ADDRESSES.permit2, ADDRESSES.usdg, ADDRESSES.weth, ...LEGACY_LADDERS, ...LEGACY_ZAPS,
 ];
+
+/** Never a spender and never a destination: anyone can make Multicall3 call transferFrom, so an allowance to it is anyone's. */
+export const MULTICALL3: Address = "0xcA11bde05977b3631167028862bE2a173976CA11";
 
 /** The permissions a delegate may be given, summed: `DELEGATE.collect + DELEGATE.rules` is 12. */
 export const DELEGATE = { add: 1, remove: 2, collect: 4, rules: 8 } as const;
