@@ -3,7 +3,8 @@
 // allow, and a plan the planner saw revert is refused unless you insist.
 import { decodeFunctionData, parseAbi, type Hash, type PublicClient, type WalletClient } from "viem";
 import type { Address, Plan, Tx } from "./types.js";
-import { MULTICALL3, TRUSTED } from "./contracts.js";
+import { ADDRESSES, LEGACY_ZAPS, MULTICALL3, TRUSTED } from "./contracts.js";
+import { loomZapAbi } from "./abis.js";
 
 export type SendOptions = {
   walletClient: WalletClient;
@@ -27,6 +28,18 @@ const approveAbi = parseAbi([
   // the same by other names: WETH takes increaseAllowance, USDG increaseApproval
   "function increaseAllowance(address spender, uint256 added)", "function increaseApproval(address spender, uint256 added)",
 ]);
+/** The swap legs a zap call carries (a build's, an add's, a close's sales): each must swap in a pool, never hand router
+ *  calldata to the zap's router (Nordstern's on the live zap, which LoomDesk never uses). */
+const ZAPS = new Set([ADDRESSES.loomZap, ...LEGACY_ZAPS].map((a) => a.toLowerCase()));
+function zapLegsCarryCalldata(to: string, data: string): boolean {
+  if (!ZAPS.has(to.toLowerCase())) return false;
+  try {
+    const d = decodeFunctionData({ abi: loomZapAbi, data: data as `0x${string}` });
+    const legs = d.functionName === "zapBuild" ? d.args[2] : d.functionName === "zapAddVia" ? d.args[3] : d.functionName === "zapCloseVia" ? d.args[3] : undefined;
+    return Array.isArray(legs) && legs.some((l) => typeof (l as { data?: string }).data === "string" && (l as { data: string }).data !== "0x");
+  } catch { return false; }
+}
+
 /** A plan never moves a token itself: a transfer or transferFrom, to anyone, is never one of its steps. */
 const TRANSFERS = new Set(["0xa9059cbb", "0x23b872dd"]);
 
@@ -49,6 +62,7 @@ export function assertSendable(plan: Plan, allow: Address[] = TRUSTED, opts: { s
   const ok = new Set(allow.map((a) => a.toLowerCase()));
   ok.delete(MULTICALL3.toLowerCase());
   for (const t of plan.transactions) {
+    if (zapLegsCarryCalldata(t.to, t.data)) throw new Error(`step "${t.step}" has a zap swap that runs router calldata in place of a pool, which LoomDesk's plans never do.`);
     if (!opts.transfers && TRANSFERS.has(t.data.slice(0, 10).toLowerCase())) throw new Error(`step "${t.step}" moves a token straight out of the wallet, which a plan never does.`);
     const spender = spenderOf(t.data);
     if (spender !== undefined) {
