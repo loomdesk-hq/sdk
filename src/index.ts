@@ -8,5 +8,5 @@ export { checkBlocks, BLOCK_LIMITS, checkHook, feeAt, launchCurve, hookPoolKey, 
 export type { HookRule, VolSettings, GapSettings } from "./hooks.js";
 export type { LaunchAsk, LaunchPlan, CurveAsk } from "./launch.js";
 export { robinhoodChain, CHAIN_ID, ADDRESSES, LEGACY_LADDERS, TRUSTED, DELEGATE } from "./contracts.js";
-export { erc20Abi, loomLadderAbi, loomZapAbi, loomZapV2Abi, loomOpenHookV2Abi, loomBlocksHookAbi, loomFullHookAbi, pilotGasAbi } from "./abis.js";
+export { erc20Abi, loomLadderAbi, loomZapAbi, loomZapV2Abi, loomStakeAbi, loomOpenHookV2Abi, loomBlocksHookAbi, loomFullHookAbi, pilotGasAbi } from "./abis.js";
 export type * from "./types.js";

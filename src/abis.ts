@@ -97,6 +97,15 @@ export const loomZapV2Abi = parseAbi([
   "error BadRungs()", "error IsPaused()", "error NotAllowed()", "error ZeroAddress()", "error NotYours()", "error PriceOutOfBounds()",
 ]);
 
+/** LoomStake: LOOM staked for a week counts toward the ladder's lower share. */
+export const loomStakeAbi = parseAbi([
+  "function balanceOf(address who) view returns (uint256)",
+  "function stakeOf(address who) view returns (uint256 counted, uint256 waiting, uint256 countsAt)",
+  "function stake(uint256 amount)",
+  "function unstake(uint256 amount, address to)",
+  "error ZeroAmount()", "error ZeroAddress()", "error NotServed()",
+]);
+
 /** LoomOpenHookV2: pools anyone opens, any range. The fee is the tier plus, while they last, a launch fee and a volatility fee. */
 export const loomOpenHookV2Abi = parseAbi([
   "struct PoolKey { address currency0; address currency1; uint24 fee; int24 tickSpacing; address hooks; }",
