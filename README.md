@@ -235,7 +235,7 @@ Every call is charged in units of what it costs LoomDesk's node: a read 1, a pla
 
 ## Reads without the planner
 
-The ABIs ship as viem ABIs: `loomLadderAbi`, `loomZapAbi`, `loomOpenHookV2Abi`, `loomFullHookAbi`, `pilotGasAbi`, `erc20Abi`, with the addresses in `ADDRESSES`. A pool's fee right now, a ladder's rungs, a delegate, the gas tank: all readable with `publicClient.readContract`.
+The ABIs ship as viem ABIs: `loomLadderAbi`, `loomZapAbi` (the zaps before 30 October 2026), `loomZapV2Abi` (the current zap: a build names the price it may mint at, and a leg has no calldata), `loomStakeAbi`, `loomOpenHookV2Abi`, `loomFullHookAbi`, `pilotGasAbi`, `erc20Abi`, with the addresses in `ADDRESSES`. A pool's fee right now, a ladder's rungs, a delegate, the gas tank: all readable with `publicClient.readContract`.
 
 ## Also
 
