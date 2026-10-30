@@ -17,14 +17,16 @@ export const robinhoodChain = defineChain({
 });
 
 export const ADDRESSES = {
-  /** the current LoomLadder (ladders in any pool with a money side, since 30 October 2026, with the fixes of ContractWolf's report); give and setDelegate live here */
-  loomLadder: "0x96D6E6F1E5cB1f4597cC60e1aAa23170E64e8E01" as Address,
+  /** the current LoomLadder (ladders in any pool with a money side, since the evening of 30 October 2026, with the fixes of ContractWolf's report and the re-lay fixes after it); give and setDelegate live here */
+  loomLadder: "0x792cC8791AEb4D61a894DC770d38e98ae8537aFA" as Address,
   /** one asset in, a whole ladder out; opens a pool on the hook on the way. The current LoomLadder's own zap */
-  loomZap: "0x4A0ab8f92351a4d3117BA3F277CefdA6B63ecb2C" as Address,
+  loomZap: "0x6e292580F888f13B70335985482a2bcb526d1ffF" as Address,
   /** puts an empty v4 pool's price back at the market before a ladder is laid in it; trades nothing */
   priceSetter: "0xE1394FBDFaA0186EDA5a999f4076002179100d2B" as Address,
   /** the autopilot's gas tank of the current LoomLadder (a tank serves one ladder contract) */
-  pilotGas: "0xc658aBA5c0095f5Bff9891E289A17F05F3730162" as Address,
+  pilotGas: "0x3A56f62ebba59d6531d9c24fe451B4e506D2eCDE" as Address,
+  /** the tank of 0x96D6…8E01: what owners left there stays theirs to take back, and it goes on serving that ladder */
+  pilotGasV2: "0xc658aBA5c0095f5Bff9891E289A17F05F3730162" as Address,
   /** the tank of the ladder before it, 0x72e5…F273 and earlier: what owners left there stays theirs to take back */
   pilotGasV1: "0x86B5776F64fF26943724C0E5117c0b1b58d15f90" as Address,
   /** LoomStake: 100,000 LOOM staked for a week lowers a wallet's share of a ladder's fees */
@@ -37,7 +39,9 @@ export const ADDRESSES = {
   loomBlocksHookV1: "0x8A82E05AA319E506631810D1dC1f20BE248C20cc" as Address,
   /** LoomLock: liquidity locked for good. A ladder given to it can never be taken out; its fees go to the beneficiary
    *  its owner named (planAction lock / collect_locked). For the current LoomLadder (its ladder()), since 27 October 2026 */
-  loomLock: "0x066EfE119d825151D221C877bb325B63b70dacA9" as Address,
+  loomLock: "0xb14feF853F7a00fCffBB93F2e70831B04E8965A4" as Address,
+  /** the LoomLock of 0x96D6…8E01: what is locked there is collected through it, nothing new goes in */
+  loomLockV3: "0x066EfE119d825151D221C877bb325B63b70dacA9" as Address,
   /** the LoomLock of 0x72e5…F273: what is locked there is collected through it, nothing new goes in */
   loomLockV2: "0xD0da181C2EEf028891F27a16e21ABe7C57b63660" as Address,
   /** the first LoomLock, for 0x75F8…5f6C: what is locked there is collected through it, nothing new goes in */
@@ -66,6 +70,7 @@ export const ADDRESSES = {
 
 /** Earlier LoomLadders, still live for the ladders opened in them. */
 export const LEGACY_LADDERS: Address[] = [
+  "0x96D6E6F1E5cB1f4597cC60e1aAa23170E64e8E01",
   "0x72e5dC8bb512B93E49991d541C23208B9145F273",
   "0xA68CAD7C0675007C31F8dFf7A594aA9EA973F35f",
   "0x75F858eEF29b47bE1a1254568f938aedB0F15f6C",
@@ -89,6 +94,7 @@ export const LEGACY_LADDERS: Address[] = [
 /** The zap of an earlier LoomLadder (a close `into` one asset of a ladder there goes through it). Another one is
  *  found on the chain: LoomLadder.zap() on that contract, whose ladder() names the contract back. */
 export const LEGACY_ZAPS: Address[] = [
+  "0x4A0ab8f92351a4d3117BA3F277CefdA6B63ecb2C",
   "0x465AC088C61B6bB50E3690F7BC5cAD9f491000a6",
   "0x345d539094485888038Ca444E03b8eE52e68afAC",
   "0xB120623713677497c738790862726f1F3d4B0974",
@@ -103,7 +109,7 @@ export const LEGACY_ZAPS: Address[] = [
 /** Where a plan's transactions may go, by default: LoomDesk's contracts, the swap router and Permit2, USDG and WETH.
  *  An approval may go to any token, as long as what it approves is one of these (assertSendable reads it). */
 export const TRUSTED: Address[] = [
-  ADDRESSES.loomLadder, ADDRESSES.loomZap, ADDRESSES.priceSetter, ADDRESSES.pilotGas, ADDRESSES.pilotGasV1, ADDRESSES.loomStake, ADDRESSES.loomLock, ADDRESSES.loomLockV2, ADDRESSES.loomLockV1, ADDRESSES.loomBlocksHook, ADDRESSES.loomBlocksHookV1, ADDRESSES.loomOpenHookV2, ADDRESSES.loomFullHook,
+  ADDRESSES.loomLadder, ADDRESSES.loomZap, ADDRESSES.priceSetter, ADDRESSES.pilotGas, ADDRESSES.pilotGasV2, ADDRESSES.pilotGasV1, ADDRESSES.loomStake, ADDRESSES.loomLock, ADDRESSES.loomLockV3, ADDRESSES.loomLockV2, ADDRESSES.loomLockV1, ADDRESSES.loomBlocksHook, ADDRESSES.loomBlocksHookV1, ADDRESSES.loomOpenHookV2, ADDRESSES.loomFullHook,
   ADDRESSES.swapRouter, ADDRESSES.permit2, ADDRESSES.usdg, ADDRESSES.weth, ...LEGACY_LADDERS, ...LEGACY_ZAPS,
 ];
 
