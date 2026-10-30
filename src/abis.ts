@@ -77,6 +77,26 @@ export const loomZapAbi = parseAbi([
   "error BadRungs()", "error IsPaused()", "error NotAllowed()", "error ZeroAddress()", "error NotYours()",
 ]);
 
+/** The zap from ContractWolf's report on (2026-10): a build names the pool's price it may mint at and what buying the hook's
+ *  fee may spend, and a leg carries no router calldata (there is no router). */
+export const loomZapV2Abi = parseAbi([
+  "struct PoolKey { address currency0; address currency1; uint24 fee; int24 tickSpacing; address hooks; }",
+  "struct ZRung { int24 tickLower; int24 tickUpper; uint32 weight; }",
+  "struct Credit { address referrer; uint256 copyOf; }",
+  "struct Hop { address v3Pool; PoolKey key; }",
+  "struct Leg { address tokenIn; uint256 amountIn; address tokenOut; uint256 minOut; Hop hop; }",
+  "struct Opening { address hook; address token; address quote; uint24 fee; uint160 sqrtPriceX96; PoolKey refKey; }",
+  "function zapV4(PoolKey key, address quote, uint256 amountIn, uint256 swapAmount, uint256 minOut, ZRung[] rungs, uint160[2] price, uint256 deadline, bytes hookData, Credit credit) payable returns (uint256)",
+  "function zapV3(address pool, address quote, uint256 amountIn, uint256 swapAmount, uint256 minOut, ZRung[] rungs, uint160[2] price, uint256 deadline, Credit credit) payable returns (uint256)",
+  "function zapClose(uint256 ladderId, uint16 shareBps, address into, Hop hop, uint256 minOut, uint256 deadline, bytes hookData) returns (uint256)",
+  "function zapCloseVia(uint256 ladderId, uint16 shareBps, address into, Leg[] sales, uint256 minOut, uint256 deadline, bytes hookData) returns (uint256)",
+  "function zapAddVia(uint256 ladderId, address quote, uint256 amountIn, Leg[] legs, uint16 shareBps, uint160[2] price, uint256 deadline, bytes hookData) payable returns (uint256, uint256)",
+  "function zapBuild(address payIn, uint256 amountIn, Leg[] legs, Opening opening, PoolKey key, ZRung[] rungs, uint160[2] price, uint256 maxFeeWeth, uint256 deadline, bytes hookData, Credit credit) payable returns (uint256)",
+  "function weth() view returns (address)",
+  "error Expired()", "error BadQuote()", "error TooLittleOut()", "error NothingToBuild()", "error NotThePool()", "error SendFailed()",
+  "error BadRungs()", "error IsPaused()", "error NotAllowed()", "error ZeroAddress()", "error NotYours()", "error PriceOutOfBounds()",
+]);
+
 /** LoomOpenHookV2: pools anyone opens, any range. The fee is the tier plus, while they last, a launch fee and a volatility fee. */
 export const loomOpenHookV2Abi = parseAbi([
   "struct PoolKey { address currency0; address currency1; uint24 fee; int24 tickSpacing; address hooks; }",

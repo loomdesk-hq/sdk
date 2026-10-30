@@ -4,7 +4,7 @@
 import { decodeFunctionData, parseAbi, type Hash, type PublicClient, type WalletClient } from "viem";
 import type { Address, Plan, Tx } from "./types.js";
 import { ADDRESSES, LEGACY_ZAPS, MULTICALL3, TRUSTED } from "./contracts.js";
-import { loomZapAbi } from "./abis.js";
+import { loomZapAbi, loomZapV2Abi } from "./abis.js";
 
 export type SendOptions = {
   walletClient: WalletClient;
@@ -34,6 +34,8 @@ const ZAPS = new Set([ADDRESSES.loomZap, ...LEGACY_ZAPS].map((a) => a.toLowerCas
 function zapLegsCarryCalldata(to: string, data: string): boolean {
   if (!ZAPS.has(to.toLowerCase())) return false;
   try {
+    // the newer zap's legs have no calldata to carry
+    try { decodeFunctionData({ abi: loomZapV2Abi, data: data as `0x${string}` }); return false; } catch { /* the earlier zap */ }
     const d = decodeFunctionData({ abi: loomZapAbi, data: data as `0x${string}` });
     const legs = d.functionName === "zapBuild" ? d.args[2] : d.functionName === "zapAddVia" ? d.args[3] : d.functionName === "zapCloseVia" ? d.args[3] : undefined;
     return Array.isArray(legs) && legs.some((l) => typeof (l as { data?: string }).data === "string" && (l as { data: string }).data !== "0x");
