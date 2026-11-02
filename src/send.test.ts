@@ -43,10 +43,46 @@ test("a tank is filled and emptied for the wallet alone", () => {
   assert.throws(() => assertSendable(plan(tx(ADDRESSES.pilotGas, toOther)), TRUSTED, { owner: OWNER }), /pays 0x2222/);
 });
 
+const WETH = ADDRESSES.weth;
+const path = (a: string, b: string) => `0x${a.slice(2)}000bb8${b.slice(2)}` as `0x${string}`;
+const v3p = (r: string, p: `0x${string}`, payerIsUser = true) => encodeAbiParameters(parseAbiParameters("address recipient, uint256 amountIn, uint256 amountOutMin, bytes path, bool payerIsUser, uint256[] minHopPriceX36"), [r as `0x${string}`, 1n, 1n, p, payerIsUser, []]);
+const wrap = (r: string) => encodeAbiParameters(parseAbiParameters("address recipient, uint256 amount"), [r as `0x${string}`, 1n]);
+const unwrap = (r: string) => encodeAbiParameters(parseAbiParameters("address recipient, uint256 amountMin"), [r as `0x${string}`, 1n]);
+const pull = (r: string) => encodeAbiParameters(parseAbiParameters("address token, address recipient, uint160 amount"), [TOKEN, r as `0x${string}`, 1n]);
+const sweepOf = (token: string, r: string) => encodeAbiParameters(parseAbiParameters("address token, address recipient, uint256 amountMin"), [token as `0x${string}`, r as `0x${string}`, 1n]);
+const withValue = (t: Tx, value: string): Tx => ({ ...t, value } as Tx);
+
 test("a swap pays the wallet or the router itself, never a third address, and runs no command LoomDesk never uses", () => {
-  assertSendable(plan(tx(ADDRESSES.swapRouter, exec([0x00, 0x04], [v3(ADDRESS_THIS), sweep(MSG_SENDER)]))), TRUSTED, { owner: OWNER });
-  assertSendable(plan(tx(ADDRESSES.swapRouter, exec([0x00], [v3(OWNER)]))), TRUSTED, { owner: OWNER });
-  assert.throws(() => assertSendable(plan(tx(ADDRESSES.swapRouter, exec([0x00, 0x04], [v3(ADDRESS_THIS), sweep(OTHER)]))), TRUSTED, { owner: OWNER }), /the sweep pays 0x2222/);
+  assertSendable(plan(tx(ADDRESSES.swapRouter, exec([0x00, 0x04], [v3p(ADDRESS_THIS, path(WETH, TOKEN)), sweep(MSG_SENDER)]))), TRUSTED, { owner: OWNER });
+  assertSendable(plan(tx(ADDRESSES.swapRouter, exec([0x00], [v3p(OWNER, path(WETH, TOKEN))]))), TRUSTED, { owner: OWNER });
+  assert.throws(() => assertSendable(plan(tx(ADDRESSES.swapRouter, exec([0x00, 0x04], [v3p(ADDRESS_THIS, path(WETH, TOKEN)), sweep(OTHER)]))), TRUSTED, { owner: OWNER }), /the sweep pays 0x2222/);
   assert.throws(() => assertSendable(plan(tx(ADDRESSES.swapRouter, exec([0x05], [sweep(OWNER)]))), TRUSTED, { owner: OWNER }), /never use \(0x05\)/);
   assert.throws(() => assertSendable(plan(tx(ADDRESSES.swapRouter, "0x12345678")), TRUSTED, { owner: OWNER }), /cannot be read/);
+});
+
+test("the router keeps nothing: what an execute routes to the router itself leaves it by the end, ETH sent is spent inside, the router's own mask and no allow-revert flag (Hey Research Lab, 2026-11-02)", () => {
+  const router = ADDRESSES.swapRouter;
+  // the plain LoomDesk swap: wrap to the router, swap from it, sweep the output to the wallet
+  assertSendable(plan(withValue(tx(router, exec([0x0b, 0x00, 0x04], [wrap(ADDRESS_THIS), v3p(ADDRESS_THIS, path(WETH, TOKEN), false), sweep(MSG_SENDER)])), "1")), TRUSTED, { owner: OWNER });
+  // a wrap to the router with nothing that moves the WETH on: left for anyone to sweep
+  assert.throws(() => assertSendable(plan(withValue(tx(router, exec([0x0b], [wrap(ADDRESS_THIS)])), "1")), TRUSTED, { owner: OWNER }), /leaves WETH in the router/);
+  // a wrap to the router, unwrapped back to the wallet: fine
+  assertSendable(plan(withValue(tx(router, exec([0x0b, 0x0c], [wrap(ADDRESS_THIS), unwrap(MSG_SENDER)])), "1")), TRUSTED, { owner: OWNER });
+  // a Permit2 pull to the router with no sweep: left
+  assert.throws(() => assertSendable(plan(tx(router, exec([0x02], [pull(ADDRESS_THIS)]))), TRUSTED, { owner: OWNER }), /leaves 0x3333/);
+  assertSendable(plan(tx(router, exec([0x02, 0x04], [pull(ADDRESS_THIS), sweepOf(TOKEN, OWNER)]))), TRUSTED, { owner: OWNER });
+  // a swap leg paid to the router, its output never swept: left
+  assert.throws(() => assertSendable(plan(tx(router, exec([0x00], [v3p(ADDRESS_THIS, path(WETH, TOKEN))]))), TRUSTED, { owner: OWNER }), /leaves 0x3333/);
+  // ETH sent with a call that nothing in it spends (a lone balance check)
+  const bal = encodeAbiParameters(parseAbiParameters("address owner, address token, uint256 minBalance"), [OWNER, TOKEN, 1n]);
+  assert.throws(() => assertSendable(plan(withValue(tx(router, exec([0x0e], [bal])), "1")), TRUSTED, { owner: OWNER }), /ETH that nothing in it spends/);
+  assertSendable(plan(tx(router, exec([0x0e], [bal]))), TRUSTED, { owner: OWNER });
+  // 0x40 is the router's bridge deposit under its 0x7f mask, never a v3 swap; 0x80 is the allow-revert flag
+  assert.throws(() => assertSendable(plan(tx(router, exec([0x40], [v3(OWNER)]))), TRUSTED, { owner: OWNER }), /never use \(0x40\)/);
+  assert.throws(() => assertSendable(plan(tx(router, exec([0x80], [v3(OWNER)]))), TRUSTED, { owner: OWNER }), /allowed to revert/);
+});
+
+test("a give to LoomDesk's lock is the lock, not a handover: sent without naming it in recipients", () => {
+  assertSendable(plan(tx(ladder, give(ADDRESSES.loomLock))), TRUSTED, { owner: OWNER });
+  assert.throws(() => assertSendable(plan(tx(ladder, give(OTHER))), TRUSTED, { owner: OWNER }), /hands the ladder/);
 });
