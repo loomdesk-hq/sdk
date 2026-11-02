@@ -1,6 +1,6 @@
 {
   "name": "loomdesk-sdk",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "LoomDesk for your code: plan and build liquidity positions on Robinhood Chain, open pools on LoomDesk's hooks, send or delegate positions. Plans come back as unsigned transactions; you sign.",
   "license": "MIT",
   "type": "module",
@@ -14,6 +14,7 @@
   },
   "files": [
     "dist",
+    "!dist/*.test.*",
     "README.md",
     "LICENSE"
   ],
@@ -22,6 +23,7 @@
     "node": ">=18"
   },
   "scripts": {
+    "test": "tsc -p tsconfig.json && node --test dist/*.test.js",
     "build": "tsc -p tsconfig.json",
     "prepare": "tsc -p tsconfig.json",
     "smoke": "node test/smoke.mjs",
@@ -31,6 +33,7 @@
     "viem": ">=2.20.0"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "typescript": "^5.6.0",
     "viem": "^2.56.0"
   },

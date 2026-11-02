@@ -41,6 +41,8 @@ const hashes = await sendPlan(plan, { walletClient, publicClient });
 
 `sendPlan` sends the plan's transactions in order, each after the one before is mined, with the gas limits the planner set. It refuses a plan whose simulation failed and any transaction that is not going to one of LoomDesk's contracts. Plans are priced at the block they were made: send them soon (`plan.sendWithin` says how soon), and plan again rather than resend one that reverted.
 
+It also reads where every call pays: a close, a collect, a withdrawal or an open on LoomLadder, a tank's fill or withdrawal, a stake's withdrawal, and every command of a swap on the Universal Router must name your wallet (or, inside a swap, the router itself). A plan that pays or hands a ladder to anyone else is refused, unless you name that address in `recipients`: `sendPlan(plan, { walletClient, publicClient, recipients: ["0xFriend"] })` for a give, or the agent's address for a delegate. A call to one of these contracts the SDK cannot read is refused too. So a plan from anywhere, LoomDesk's own planner included, can move your assets only to you.
+
 ## What you can plan
 
 | Method | What comes back |
@@ -190,10 +192,10 @@ Positions on the current LoomLadder can be handed to another wallet, or run by o
 import { perms, readDelegate, loomLadderAbi, ADDRESSES } from "loomdesk-sdk";
 
 // hand it over, as it is: rungs, fees waiting, rules. Final.
-await sendPlan(await loom.planAction({ ladderId: "12", owner, action: "give", to: "0xFriend" }), { walletClient, publicClient });
+await sendPlan(await loom.planAction({ ladderId: "12", owner, action: "give", to: "0xFriend" }), { walletClient, publicClient, recipients: ["0xFriend"] });
 
 // let an agent collect and set the rules; every payout still goes to you
-await sendPlan(await loom.planAction({ ladderId: "12", owner, action: "delegate", who: "0xAgent", perms: perms("collect", "rules") }), { walletClient, publicClient });
+await sendPlan(await loom.planAction({ ladderId: "12", owner, action: "delegate", who: "0xAgent", perms: perms("collect", "rules") }), { walletClient, publicClient, recipients: ["0xAgent"] });
 
 // the delegate acts by naming itself as `actor`; the proceeds must go to the owner
 const collect = await loom.planAction({ ladderId: "12", owner, actor: "0xAgent", action: "collect" });

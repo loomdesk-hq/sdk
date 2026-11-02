@@ -5,6 +5,7 @@ import { decodeFunctionData, parseAbi, type Hash, type PublicClient, type Wallet
 import type { Address, Plan, Tx } from "./types.js";
 import { ADDRESSES, LEGACY_ZAPS, MULTICALL3, TRUSTED } from "./contracts.js";
 import { loomZapAbi, loomZapV2Abi } from "./abis.js";
+import { recipientProblem } from "./recipients.js";
 
 export type SendOptions = {
   walletClient: WalletClient;
@@ -15,7 +16,10 @@ export type SendOptions = {
   sendFailed?: boolean;
   /** let a plain token transfer through: a plan from LoomDesk never has one, a wallet's own withdrawal does */
   transfers?: boolean;
-  /** skip every check: the simulation, the destinations and the approvals. Prefer `allow` or `sendFailed` */
+  /** addresses other than the wallet a plan may pay or hand a ladder to: the friend a give goes to, the agent a
+   *  delegate names. Without them, a plan that names anyone but the wallet is refused */
+  recipients?: Address[];
+  /** skip every check: the simulation, the destinations, the approvals and the recipients. Prefer `allow` or `sendFailed` */
   force?: boolean;
   /** called before each step */
   onStep?: (i: number, tx: Tx) => void;
@@ -59,8 +63,10 @@ function spenderOf(data: string): string | undefined {
 }
 
 /** Throws when a plan should not be sent as it is: a failed simulation (unless `sendFailed`), a destination outside
- *  `allow`, or an approval whose spender is outside it. An approval may go to any token: what it approves is read. */
-export function assertSendable(plan: Plan, allow: Address[] = TRUSTED, opts: { sendFailed?: boolean; transfers?: boolean } = {}): void {
+ *  `allow`, an approval whose spender is outside it, or, given `owner`, a call that pays or empowers anyone but the
+ *  owner (and the addresses in `recipients`). An approval may go to any token: what it approves is read. Without
+ *  `owner` the recipients are not checked: sendPlan always gives it. */
+export function assertSendable(plan: Plan, allow: Address[] = TRUSTED, opts: { sendFailed?: boolean; transfers?: boolean; owner?: Address; recipients?: Address[] } = {}): void {
   if (!plan.transactions?.length) throw new Error("the plan has no transactions");
   if (!opts.sendFailed && plan.check?.simulated && plan.check.ok === false) {
     throw new Error(`the planner saw this plan fail at step ${plan.check.failedStep ?? "?"}: ${plan.check.reason ?? "unknown"}. Plan again right before sending.`);
@@ -78,15 +84,19 @@ export function assertSendable(plan: Plan, allow: Address[] = TRUSTED, opts: { s
       continue;
     }
     if (!ok.has(t.to.toLowerCase())) throw new Error(`step "${t.step}" goes to ${t.to}, which is not in the allowed contracts. Check it against https://loomdesk.trade/llms.txt before sending.`);
+    if (opts.owner) {
+      const why = recipientProblem(t, { owner: opts.owner, allow: ok, recipients: new Set((opts.recipients ?? []).map((a) => a.toLowerCase())) });
+      if (why) throw new Error(`step "${t.step}": ${why}. A plan from LoomDesk pays your wallet alone; name any other address in \`recipients\` if you meant it.`);
+    }
   }
 }
 
 /** Send a plan. Returns the transaction hashes in order. Stops at the first one that reverts. */
 export async function sendPlan(plan: Plan, opts: SendOptions): Promise<Hash[]> {
   const { walletClient, publicClient } = opts;
-  if (!opts.force) assertSendable(plan, opts.allow, { sendFailed: opts.sendFailed, transfers: opts.transfers });
   const account = walletClient.account;
   if (!account) throw new Error("the wallet client has no account");
+  if (!opts.force) assertSendable(plan, opts.allow, { sendFailed: opts.sendFailed, transfers: opts.transfers, owner: account.address, recipients: opts.recipients });
   const hashes: Hash[] = [];
   for (let i = 0; i < plan.transactions.length; i++) {
     const t = plan.transactions[i];
